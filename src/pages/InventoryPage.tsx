@@ -5,7 +5,7 @@ import { InventoryTable, Diamond } from "@/components/inventory/InventoryTable";
 import { InventoryFilters } from "@/components/inventory/InventoryFilters";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, FileText } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { 
   Pagination, 
@@ -43,9 +43,12 @@ export default function InventoryPage() {
         const cuts = ["Excellent", "Very Good", "Good"];
         const statuses = ["Available", "Reserved", "Sold"];
         
+        // Include the reference stock numbers provided by the user
+        const referenceStockNumbers = ["A426-051B", "A399-109B", "C307DA-620A"];
+        
         const mockDiamonds: Diamond[] = Array.from({ length: 10 }).map((_, i) => ({
           id: `d-${i + 1}`,
-          stockNumber: `D${10000 + i}`,
+          stockNumber: i < 3 ? referenceStockNumbers[i] : `D${10000 + i}`,
           shape: shapes[Math.floor(Math.random() * shapes.length)],
           carat: parseFloat((0.5 + Math.random() * 4).toFixed(2)),
           color: colors[Math.floor(Math.random() * colors.length)],
@@ -114,6 +117,39 @@ export default function InventoryPage() {
     e.preventDefault();
     // In a real app, we would update the filters or call a search API endpoint
     console.log("Searching for:", searchQuery);
+    
+    // Simple client-side filtering for the demo
+    if (searchQuery.trim()) {
+      const filtered = diamonds.filter(diamond => 
+        diamond.stockNumber.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      if (filtered.length > 0) {
+        setDiamonds(filtered);
+      } else {
+        toast({
+          title: "No results",
+          description: `No diamonds found with stock number containing "${searchQuery}"`,
+        });
+      }
+    }
+  };
+
+  const handleExportStockNumbers = () => {
+    const stockNumbers = diamonds.map(d => d.stockNumber).join('\n');
+    const blob = new Blob([stockNumbers], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'diamond-stock-numbers.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: "Export complete",
+      description: "Stock numbers have been exported to a text file.",
+    });
   };
 
   return (
@@ -127,17 +163,23 @@ export default function InventoryPage() {
             </p>
           </div>
           
-          <Button className="w-full sm:w-auto">
-            <Plus className="mr-2 h-4 w-4" />
-            Add Diamond
-          </Button>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button onClick={handleExportStockNumbers} variant="outline" className="flex-1 sm:flex-none">
+              <FileText className="mr-2 h-4 w-4" />
+              Export Stock#
+            </Button>
+            <Button className="flex-1 sm:flex-none">
+              <Plus className="mr-2 h-4 w-4" />
+              Add Diamond
+            </Button>
+          </div>
         </div>
         
         <div className="flex flex-col sm:flex-row gap-4">
           <form onSubmit={handleSearch} className="relative flex-1">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search by stock number, shape, etc."
+              placeholder="Search by stock number..."
               className="pl-8"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}

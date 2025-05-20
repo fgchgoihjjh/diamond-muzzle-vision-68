@@ -96,7 +96,7 @@ export function InventoryTable({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[120px]">Stock #</TableHead>
+              <TableHead className="w-[150px] font-bold">Stock #</TableHead>
               <TableHead>Shape</TableHead>
               <TableHead className="text-right">Carat</TableHead>
               <TableHead>Color</TableHead>
@@ -117,7 +117,7 @@ export function InventoryTable({
             ) : (
               data.map((diamond) => (
                 <TableRow key={diamond.id}>
-                  <TableCell className="font-mono text-xs">{diamond.stockNumber}</TableCell>
+                  <TableCell className="font-mono text-sm font-bold">{diamond.stockNumber}</TableCell>
                   <TableCell>{diamond.shape}</TableCell>
                   <TableCell className="text-right">{diamond.carat.toFixed(2)}</TableCell>
                   <TableCell>{diamond.color}</TableCell>
@@ -183,11 +183,12 @@ export function InventoryTable({
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="stockNumber">Stock #</Label>
+                <Label htmlFor="stockNumber" className="font-medium">Stock #</Label>
                 <Input
                   id="stockNumber"
                   value={formData.stockNumber || ""}
                   onChange={(e) => handleChange("stockNumber", e.target.value)}
+                  className="font-mono"
                 />
               </div>
               <div className="space-y-2">
