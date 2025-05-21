@@ -1,20 +1,17 @@
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+import { useToast } from "@/components/ui/use-toast";
+import { api } from "@/lib/api";
 import {
   Card,
   CardContent,
-  CardDescription,
-  CardFooter,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { useToast } from "@/components/ui/use-toast";
-import { api } from "@/lib/api";
+
+// Import the new component files
+import { IntegrationSettings } from "./IntegrationSettings";
+import { NotificationSettings } from "./NotificationSettings";
+import { AiSettings } from "./AiSettings";
 
 interface SettingsFormProps {
   loading?: boolean;
@@ -89,165 +86,27 @@ export function SettingsForm({ loading = false }: SettingsFormProps) {
   
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Integration Settings</CardTitle>
-          <CardDescription>
-            Configure your messaging platform integrations
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="telegramGroupId">Telegram Group ID</Label>
-            <Input
-              id="telegramGroupId"
-              value={settings.telegramGroupId}
-              onChange={(e) => handleChange("telegramGroupId", e.target.value)}
-            />
-            <p className="text-xs text-gray-500">
-              Find this in your Telegram group settings or ask our support team for help.
-            </p>
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label htmlFor="whatsappEnabled">WhatsApp Integration</Label>
-              <p className="text-xs text-gray-500">
-                Enable WhatsApp messaging for client communications
-              </p>
-            </div>
-            <Switch
-              id="whatsappEnabled"
-              checked={settings.whatsappEnabled}
-              onCheckedChange={(checked) => handleChange("whatsappEnabled", checked)}
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="apiKey">API Key</Label>
-            <Input
-              id="apiKey"
-              value={settings.apiKey}
-              type="password"
-              onChange={(e) => handleChange("apiKey", e.target.value)}
-            />
-            <p className="text-xs text-gray-500">
-              Required for external integrations. Keep this secure.
-            </p>
-          </div>
-        </CardContent>
-        <CardFooter className="flex justify-between">
-          <Button variant="outline">Reset</Button>
-          <Button>Save Changes</Button>
-        </CardFooter>
-      </Card>
+      <IntegrationSettings
+        telegramGroupId={settings.telegramGroupId}
+        whatsappEnabled={settings.whatsappEnabled}
+        apiKey={settings.apiKey}
+        onValueChange={handleChange}
+        isSaving={isSaving}
+      />
       
-      <Card>
-        <CardHeader>
-          <CardTitle>Notification Preferences</CardTitle>
-          <CardDescription>
-            Choose how you want to be notified about important events
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label htmlFor="emailNotifications">Email Notifications</Label>
-              <p className="text-xs text-gray-500">
-                Receive daily digest and important alerts
-              </p>
-            </div>
-            <Switch
-              id="emailNotifications"
-              checked={settings.emailNotifications}
-              onCheckedChange={(checked) => handleChange("emailNotifications", checked)}
-            />
-          </div>
-          
-          <Separator />
-          
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label htmlFor="smsNotifications">SMS Notifications</Label>
-              <p className="text-xs text-gray-500">
-                Receive urgent alerts via SMS
-              </p>
-            </div>
-            <Switch
-              id="smsNotifications"
-              checked={settings.smsNotifications}
-              onCheckedChange={(checked) => handleChange("smsNotifications", checked)}
-            />
-          </div>
-          
-          <Separator />
-          
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label htmlFor="pushNotifications">Push Notifications</Label>
-              <p className="text-xs text-gray-500">
-                Receive real-time alerts in your browser
-              </p>
-            </div>
-            <Switch
-              id="pushNotifications"
-              checked={settings.pushNotifications}
-              onCheckedChange={(checked) => handleChange("pushNotifications", checked)}
-            />
-          </div>
-        </CardContent>
-      </Card>
+      <NotificationSettings
+        emailNotifications={settings.emailNotifications}
+        smsNotifications={settings.smsNotifications}
+        pushNotifications={settings.pushNotifications}
+        onValueChange={handleChange}
+      />
       
-      <Card>
-        <CardHeader>
-          <CardTitle>AI Configuration</CardTitle>
-          <CardDescription>
-            Fine-tune your Diamond Muzzle AI behavior
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label htmlFor="autoReplyEnabled">Automatic Replies</Label>
-              <p className="text-xs text-gray-500">
-                Let AI handle routine client queries automatically
-              </p>
-            </div>
-            <Switch
-              id="autoReplyEnabled"
-              checked={settings.autoReplyEnabled}
-              onCheckedChange={(checked) => handleChange("autoReplyEnabled", checked)}
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="matchThreshold">
-              Match Threshold ({settings.matchThreshold}%)
-            </Label>
-            <div className="flex items-center gap-2">
-              <span className="text-xs">50%</span>
-              <Input
-                id="matchThreshold"
-                type="range"
-                min="50"
-                max="100"
-                value={settings.matchThreshold}
-                onChange={(e) => handleChange("matchThreshold", Number(e.target.value))}
-                className="flex-1"
-              />
-              <span className="text-xs">100%</span>
-            </div>
-            <p className="text-xs text-gray-500">
-              Higher values mean stricter matching between client requests and inventory
-            </p>
-          </div>
-        </CardContent>
-        <CardFooter>
-          <Button type="submit" className="ml-auto" disabled={isSaving}>
-            {isSaving ? "Saving..." : "Save All Changes"}
-          </Button>
-        </CardFooter>
-      </Card>
+      <AiSettings
+        autoReplyEnabled={settings.autoReplyEnabled}
+        matchThreshold={settings.matchThreshold}
+        onValueChange={handleChange}
+        isSaving={isSaving}
+      />
     </form>
   );
 }
