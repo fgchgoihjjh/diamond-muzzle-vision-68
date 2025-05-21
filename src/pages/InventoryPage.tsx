@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { InventoryTable, Diamond } from "@/components/inventory/InventoryTable";
 import { InventoryFilters } from "@/components/inventory/InventoryFilters";
@@ -15,141 +15,152 @@ import {
   PaginationNext, 
   PaginationPrevious 
 } from "@/components/ui/pagination";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api";
+
+interface InventoryResponse {
+  items: Diamond[];
+  total: number;
+  page: number;
+  totalPages: number;
+  pageSize: number;
+}
 
 export default function InventoryPage() {
   const { toast } = useToast();
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(5);
-  
-  const [diamonds, setDiamonds] = useState<Diamond[]>([]);
-  
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        // In a real app, we would call the actual API with filters and pagination
-        // const response = await api.get<Diamond[]>(`/inventory?page=${currentPage}&...`);
-        
-        // For demo purposes, we'll use mock data
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Generate mock diamonds
-        const shapes = ["Round", "Princess", "Cushion", "Emerald", "Oval", "Pear"];
-        const colors = ["D", "E", "F", "G", "H", "I"];
-        const clarities = ["IF", "VVS1", "VVS2", "VS1", "VS2", "SI1"];
-        const cuts = ["Excellent", "Very Good", "Good"];
-        const statuses = ["Available", "Reserved", "Sold"];
-        
-        // Include the reference stock numbers provided by the user
-        const referenceStockNumbers = ["A426-051B", "A399-109B", "C307DA-620A"];
-        
-        const mockDiamonds: Diamond[] = Array.from({ length: 10 }).map((_, i) => ({
-          id: `d-${i + 1}`,
-          stockNumber: i < 3 ? referenceStockNumbers[i] : `D${10000 + i}`,
-          shape: shapes[Math.floor(Math.random() * shapes.length)],
-          carat: parseFloat((0.5 + Math.random() * 4).toFixed(2)),
-          color: colors[Math.floor(Math.random() * colors.length)],
-          clarity: clarities[Math.floor(Math.random() * clarities.length)],
-          cut: cuts[Math.floor(Math.random() * cuts.length)],
-          price: Math.floor(3000 + Math.random() * 50000),
-          status: statuses[Math.floor(Math.random() * statuses.length)],
-        }));
-        
-        setDiamonds(mockDiamonds);
-        setTotalPages(5);
-      } catch (error) {
-        console.error("Failed to fetch inventory data", error);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to fetch inventory data.",
-        });
-      } finally {
-        setLoading(false);
+  const [pageSize] = useState(10);
+
+  // Fetch inventory data with filters and pagination
+  const { data, isLoading } = useQuery({
+    queryKey: ['inventory', currentPage, pageSize, filters, searchQuery],
+    queryFn: async () => {
+      // Build query parameters
+      const params = new URLSearchParams();
+      params.append('page', currentPage.toString());
+      params.append('page_size', pageSize.toString());
+      
+      if (searchQuery) {
+        params.append('search', searchQuery);
       }
-    };
-    
-    fetchData();
-  }, [currentPage, filters]);
-  
-  const handleEdit = (id: string, data: Partial<Diamond>) => {
-    setDiamonds((prev) =>
-      prev.map((diamond) => (diamond.id === id ? { ...diamond, ...data } : diamond))
-    );
-    
-    toast({
-      title: "Diamond updated",
-      description: `Stock #${data.stockNumber || ""} has been updated.`,
-    });
+      
+      // Add all filters
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value) {
+          params.append(key, value);
+        }
+      });
+      
+      const response = await api.get<InventoryResponse>(`/inventory?${params.toString()}`);
+      if (response.error) throw new Error(response.error);
+      return response.data || { items: [], total: 0, page: 1, totalPages: 1, pageSize };
+    }
+  });
+
+  // Mutation for updating diamond
+  const updateDiamondMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string, data: Partial<Diamond> }) => {
+      return await api.put(`/inventory/${id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      toast({
+        title: "Diamond updated",
+        description: "The diamond has been updated successfully.",
+      });
+    }
+  });
+
+  // Mutation for deleting diamond
+  const deleteDiamondMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return await api.delete(`/inventory/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      toast({
+        title: "Diamond deleted",
+        description: "The diamond has been removed from your inventory.",
+      });
+    }
+  });
+
+  // Mutation for marking diamond as sold
+  const markAsSoldMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return await api.put(`/inventory/${id}/status`, { status: "Sold" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      toast({
+        title: "Status updated",
+        description: "The diamond has been marked as sold.",
+      });
+    }
+  });
+
+  // Handle edit diamond
+  const handleEdit = (id: string, diamondData: Partial<Diamond>) => {
+    updateDiamondMutation.mutate({ id, data: diamondData });
   };
   
+  // Handle delete diamond
   const handleDelete = (id: string) => {
-    setDiamonds((prev) => prev.filter((diamond) => diamond.id !== id));
-    
-    toast({
-      title: "Diamond deleted",
-      description: "The diamond has been removed from your inventory.",
-    });
+    deleteDiamondMutation.mutate(id);
   };
   
+  // Handle mark as sold
   const handleMarkAsSold = (id: string) => {
-    setDiamonds((prev) =>
-      prev.map((diamond) => 
-        diamond.id === id ? { ...diamond, status: "Sold" } : diamond
-      )
-    );
-    
-    toast({
-      title: "Status updated",
-      description: "The diamond has been marked as sold.",
-    });
+    markAsSoldMutation.mutate(id);
   };
   
+  // Handle filter change
   const handleFilterChange = (newFilters: Record<string, string>) => {
     setFilters(newFilters);
     setCurrentPage(1);
   };
   
+  // Handle search
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, we would update the filters or call a search API endpoint
-    console.log("Searching for:", searchQuery);
-    
-    // Simple client-side filtering for the demo
-    if (searchQuery.trim()) {
-      const filtered = diamonds.filter(diamond => 
-        diamond.stockNumber.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      if (filtered.length > 0) {
-        setDiamonds(filtered);
-      } else {
-        toast({
-          title: "No results",
-          description: `No diamonds found with stock number containing "${searchQuery}"`,
-        });
-      }
-    }
+    setCurrentPage(1);
+    // The query will be automatically refreshed due to the dependency array
   };
 
-  const handleExportStockNumbers = () => {
-    const stockNumbers = diamonds.map(d => d.stockNumber).join('\n');
-    const blob = new Blob([stockNumbers], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'diamond-stock-numbers.txt';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    
-    toast({
-      title: "Export complete",
-      description: "Stock numbers have been exported to a text file.",
-    });
+  // Handle export stock numbers
+  const handleExportStockNumbers = async () => {
+    try {
+      const response = await api.get<{ stockNumbers: string }>('/inventory/export-stock-numbers');
+      
+      if (response.error) throw new Error(response.error);
+      
+      if (response.data?.stockNumbers) {
+        const blob = new Blob([response.data.stockNumbers], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'diamond-stock-numbers.txt';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        toast({
+          title: "Export complete",
+          description: "Stock numbers have been exported to a text file.",
+        });
+      }
+    } catch (error) {
+      console.error("Export failed", error);
+      toast({
+        variant: "destructive",
+        title: "Export failed",
+        description: "There was an error exporting the stock numbers.",
+      });
+    }
   };
 
   return (
@@ -190,11 +201,11 @@ export default function InventoryPage() {
         <InventoryFilters onFilterChange={handleFilterChange} />
         
         <InventoryTable
-          data={diamonds}
+          data={data?.items || []}
           onEdit={handleEdit}
           onDelete={handleDelete}
           onMarkAsSold={handleMarkAsSold}
-          loading={loading}
+          loading={isLoading}
         />
         
         <Pagination>
@@ -209,7 +220,7 @@ export default function InventoryPage() {
               />
             </PaginationItem>
             
-            {Array.from({ length: totalPages }).map((_, i) => (
+            {Array.from({ length: data?.totalPages || 1 }).map((_, i) => (
               <PaginationItem key={i}>
                 <PaginationLink
                   href="#"
@@ -229,7 +240,8 @@ export default function InventoryPage() {
                 href="#" 
                 onClick={(e) => {
                   e.preventDefault();
-                  if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+                  if (data?.totalPages && currentPage < data.totalPages) 
+                    setCurrentPage(currentPage + 1);
                 }}
               />
             </PaginationItem>

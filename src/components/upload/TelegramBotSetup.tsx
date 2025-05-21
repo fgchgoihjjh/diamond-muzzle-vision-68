@@ -17,6 +17,7 @@ import { MessageSquare, Send, CheckCircle, XCircle } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { api } from "@/lib/api";
 import { toast } from "@/components/ui/use-toast";
+import { useQuery, useMutation } from "@tanstack/react-query";
 
 interface TelegramFormValues {
   botToken: string;
@@ -30,63 +31,102 @@ export function TelegramBotSetup() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<"none" | "success" | "error">("none");
   
+  // Get current settings from API
+  const { data: currentSettings, isLoading } = useQuery({
+    queryKey: ['telegramSettings'],
+    queryFn: async () => {
+      const response = await api.get<TelegramFormValues>('/telegram/settings');
+      if (response.error) throw new Error(response.error);
+      return response.data;
+    }
+  });
+  
   const form = useForm<TelegramFormValues>({
     defaultValues: {
-      botToken: "7954847874:AAE3qRrdW4NJgKL1ob6mwcq1AzmkoDbXyHs", // Pre-fill with provided token
-      chatId: "-1002178695748", // Pre-fill with provided chat ID
+      botToken: "7954847874:AAE3qRrdW4NJgKL1ob6mwcq1AzmkoDbXyHs", 
+      chatId: "-1002178695748",
       enableAnalysis: true,
       enableAutoReply: true,
       notifyOnMatch: true
     }
   });
+  
+  // Update form with fetched settings when available
+  useState(() => {
+    if (currentSettings) {
+      form.reset(currentSettings);
+    }
+  });
 
-  const testConnection = async (values: TelegramFormValues) => {
-    setIsConnecting(true);
-    setConnectionStatus("none");
-    
-    try {
-      // In a real implementation, you would call the API
-      // const response = await api.post("/telegram/test-connection", values);
+  // Test connection mutation
+  const testConnectionMutation = useMutation({
+    mutationFn: async (values: TelegramFormValues) => {
+      setIsConnecting(true);
+      setConnectionStatus("none");
       
-      // For demo purposes, we're simulating a successful API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const response = await api.post<{ success: boolean }>("/telegram/test-connection", values);
       
-      setConnectionStatus("success");
-      toast({
-        title: "Connection successful",
-        description: "Your Telegram bot has been successfully connected.",
-      });
-    } catch (error) {
+      if (response.error) throw new Error(response.error);
+      return response.data?.success;
+    },
+    onSuccess: (success) => {
+      if (success) {
+        setConnectionStatus("success");
+        toast({
+          title: "Connection successful",
+          description: "Your Telegram bot has been successfully connected.",
+        });
+      } else {
+        setConnectionStatus("error");
+        toast({
+          variant: "destructive",
+          title: "Connection failed",
+          description: "Could not connect to Telegram. Connection test returned false.",
+        });
+      }
+    },
+    onError: () => {
       setConnectionStatus("error");
       toast({
         variant: "destructive",
         title: "Connection failed",
         description: "Could not connect to Telegram. Please check your credentials.",
       });
-    } finally {
+    },
+    onSettled: () => {
       setIsConnecting(false);
     }
-  };
+  });
   
-  const onSubmit = async (values: TelegramFormValues) => {
-    try {
-      // In a real implementation, you would call the API
-      // await api.post("/telegram/settings", values);
+  // Save settings mutation
+  const saveSettingsMutation = useMutation({
+    mutationFn: async (values: TelegramFormValues) => {
+      const response = await api.post<{ success: boolean }>("/telegram/settings", values);
       
-      // For demo purposes, we're simulating a successful API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
+      if (response.error) throw new Error(response.error);
+      return response.data;
+    },
+    onSuccess: () => {
       toast({
         title: "Settings saved",
         description: "Your Telegram bot settings have been saved successfully.",
       });
-    } catch (error) {
+    },
+    onError: (error) => {
       toast({
         variant: "destructive",
         title: "Save failed",
-        description: "Could not save Telegram settings. Please try again.",
+        description: error instanceof Error ? error.message : "Could not save Telegram settings. Please try again.",
       });
     }
+  });
+
+  const testConnection = async (values: TelegramFormValues) => {
+    testConnectionMutation.mutate(values);
+  };
+  
+  const onSubmit = async (values: TelegramFormValues) => {
+    saveSettingsMutation.mutate(values);
   };
 
   return (

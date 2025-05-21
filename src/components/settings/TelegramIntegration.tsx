@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +8,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { Bot, MessageSquare, Key } from "lucide-react";
 import { api } from "@/lib/api";
 import { Separator } from "@/components/ui/separator";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 interface TelegramSettings {
   telegramGroupId: string;
@@ -16,27 +16,77 @@ interface TelegramSettings {
   enableMessageAnalysis: boolean;
   autoReplyToQueries: boolean;
   notifyOnMatches: boolean;
+  lastSyncTime?: string;
 }
 
-export function TelegramIntegration() {
+interface TelegramIntegrationProps {
+  isLoading?: boolean;
+}
+
+export function TelegramIntegration({ isLoading = false }: TelegramIntegrationProps) {
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
+  const queryClient = useQueryClient();
   const [testLoading, setTestLoading] = useState(false);
   
-  const [settings, setSettings] = useState<TelegramSettings>({
-    telegramGroupId: "-10012345678",
+  // Get current settings from API
+  const { data: settings, isLoading: settingsLoading } = useQuery({
+    queryKey: ['telegramIntegrationSettings'],
+    queryFn: async () => {
+      const response = await api.get<TelegramSettings>('/settings/telegram');
+      if (response.error) throw new Error(response.error);
+      return response.data || {
+        telegramGroupId: "",
+        telegramBotToken: "",
+        enableMessageAnalysis: false,
+        autoReplyToQueries: false,
+        notifyOnMatches: false,
+      };
+    },
+  });
+  
+  // Local state to track form changes
+  const [formData, setFormData] = useState<TelegramSettings>({
+    telegramGroupId: "",
     telegramBotToken: "",
-    enableMessageAnalysis: true,
+    enableMessageAnalysis: false,
     autoReplyToQueries: false,
-    notifyOnMatches: true
+    notifyOnMatches: false,
+  });
+  
+  // Update form data when API returns settings
+  useEffect(() => {
+    if (settings) {
+      setFormData(settings);
+    }
+  }, [settings]);
+  
+  // Save settings mutation
+  const saveSettingsMutation = useMutation({
+    mutationFn: async (data: TelegramSettings) => {
+      return await api.post<{ success: boolean }>('/settings/telegram', data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['telegramIntegrationSettings'] });
+      toast({
+        title: "Telegram Settings Saved",
+        description: "Your Telegram integration settings have been updated.",
+      });
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to save Telegram settings. Please try again.",
+      });
+    },
   });
   
   const handleChange = (field: keyof TelegramSettings, value: any) => {
-    setSettings(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
   
   const handleTestConnection = async () => {
-    if (!settings.telegramBotToken) {
+    if (!formData.telegramBotToken) {
       toast({
         variant: "destructive",
         title: "Missing Bot Token",
@@ -45,7 +95,7 @@ export function TelegramIntegration() {
       return;
     }
 
-    if (!settings.telegramGroupId) {
+    if (!formData.telegramGroupId) {
       toast({
         variant: "destructive",
         title: "Missing Group ID",
@@ -56,13 +106,12 @@ export function TelegramIntegration() {
     
     setTestLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      // In a real implementation, we would call the API:
-      // const result = await api.post('/telegram/test-connection', { 
-      //   telegramGroupId: settings.telegramGroupId,
-      //   telegramBotToken: settings.telegramBotToken 
-      // });
+      const response = await api.post<{ success: boolean }>('/telegram/test-connection', { 
+        botToken: formData.telegramBotToken,
+        chatId: formData.telegramGroupId 
+      });
+      
+      if (response.error) throw new Error(response.error);
       
       toast({
         title: "Connection Successful",
@@ -80,27 +129,25 @@ export function TelegramIntegration() {
   };
   
   const handleSaveSettings = async () => {
-    setIsLoading(true);
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      // In a real implementation, we would call the API:
-      // const result = await api.post('/telegram/settings', settings);
-      
-      toast({
-        title: "Telegram Settings Saved",
-        description: "Your Telegram integration settings have been updated.",
-      });
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to save Telegram settings. Please try again.",
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    saveSettingsMutation.mutate(formData);
   };
+  
+  // Show loading state
+  if (isLoading || settingsLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Bot size={20} className="text-diamond-500" />
+            Loading Telegram Integration...
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[400px] animate-pulse bg-gray-100 rounded-lg"></div>
+        </CardContent>
+      </Card>
+    );
+  }
   
   return (
     <Card>
@@ -121,7 +168,7 @@ export function TelegramIntegration() {
             <Input
               id="telegramBotToken"
               type="password"
-              value={settings.telegramBotToken}
+              value={formData.telegramBotToken}
               onChange={(e) => handleChange("telegramBotToken", e.target.value)}
               placeholder="123456789:ABCDefGhIJKlmNoPQRsTUVwxyZ"
             />
@@ -135,7 +182,7 @@ export function TelegramIntegration() {
             <div className="flex gap-2">
               <Input
                 id="telegramGroupId"
-                value={settings.telegramGroupId}
+                value={formData.telegramGroupId}
                 onChange={(e) => handleChange("telegramGroupId", e.target.value)}
                 className="flex-1"
                 placeholder="-10012345678"
@@ -165,7 +212,7 @@ export function TelegramIntegration() {
           </div>
           <Switch
             id="enableMessageAnalysis"
-            checked={settings.enableMessageAnalysis}
+            checked={formData.enableMessageAnalysis}
             onCheckedChange={(checked) => handleChange("enableMessageAnalysis", checked)}
           />
         </div>
@@ -179,7 +226,7 @@ export function TelegramIntegration() {
           </div>
           <Switch
             id="autoReplyToQueries"
-            checked={settings.autoReplyToQueries}
+            checked={formData.autoReplyToQueries}
             onCheckedChange={(checked) => handleChange("autoReplyToQueries", checked)}
           />
         </div>
@@ -193,7 +240,7 @@ export function TelegramIntegration() {
           </div>
           <Switch
             id="notifyOnMatches"
-            checked={settings.notifyOnMatches}
+            checked={formData.notifyOnMatches}
             onCheckedChange={(checked) => handleChange("notifyOnMatches", checked)}
           />
         </div>

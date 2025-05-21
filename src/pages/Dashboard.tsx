@@ -5,6 +5,7 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { InventoryChart } from "@/components/dashboard/InventoryChart";
 import { Diamond, Coins, Users, BadgeCheck } from "lucide-react";
 import { api } from "@/lib/api";
+import { useQuery } from "@tanstack/react-query";
 
 interface DashboardStats {
   totalDiamonds: number;
@@ -13,61 +14,55 @@ interface DashboardStats {
   activeSubscriptions: number;
 }
 
+interface InventoryChartData {
+  name: string;
+  value: number;
+}
+
 export default function Dashboard() {
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<DashboardStats>({
-    totalDiamonds: 0,
-    matchedPairs: 0,
-    totalLeads: 0,
-    activeSubscriptions: 0,
+  // Fetch dashboard stats
+  const { 
+    data: stats, 
+    isLoading: statsLoading 
+  } = useQuery({
+    queryKey: ['dashboardStats'],
+    queryFn: async () => {
+      const response = await api.get<DashboardStats>('/stats');
+      if (response.error) throw new Error(response.error);
+      return response.data || {
+        totalDiamonds: 0,
+        matchedPairs: 0,
+        totalLeads: 0,
+        activeSubscriptions: 0
+      };
+    }
   });
   
-  const [inventoryData, setInventoryData] = useState([
-    { name: "Round", value: 0 },
-    { name: "Princess", value: 0 },
-    { name: "Cushion", value: 0 },
-    { name: "Oval", value: 0 },
-    { name: "Pear", value: 0 },
-    { name: "Other", value: 0 },
-  ]);
+  // Fetch inventory shape data
+  const { 
+    data: shapeData, 
+    isLoading: shapeLoading 
+  } = useQuery({
+    queryKey: ['inventoryByShape'],
+    queryFn: async () => {
+      const response = await api.get<InventoryChartData[]>('/inventory/by-shape');
+      if (response.error) throw new Error(response.error);
+      return response.data || [];
+    }
+  });
   
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        // In a real app, we would call the actual API
-        // const response = await api.get<DashboardStats>('/stats');
-        // setStats(response.data);
-        
-        // For demo purposes, we'll use mock data
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        
-        // Mock data
-        setStats({
-          totalDiamonds: 1287,
-          matchedPairs: 42,
-          totalLeads: 96,
-          activeSubscriptions: 18,
-        });
-        
-        setInventoryData([
-          { name: "Round", value: 582 },
-          { name: "Princess", value: 231 },
-          { name: "Cushion", value: 142 },
-          { name: "Oval", value: 118 },
-          { name: "Pear", value: 64 },
-          { name: "Other", value: 150 },
-        ]);
-        
-      } catch (error) {
-        console.error("Failed to fetch dashboard data", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchData();
-  }, []);
+  // Fetch sales by carat data
+  const { 
+    data: salesData, 
+    isLoading: salesLoading 
+  } = useQuery({
+    queryKey: ['salesByCategory'],
+    queryFn: async () => {
+      const response = await api.get<InventoryChartData[]>('/sales/by-category');
+      if (response.error) throw new Error(response.error);
+      return response.data || [];
+    }
+  });
 
   return (
     <Layout>
@@ -82,56 +77,50 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             title="Total Diamonds"
-            value={stats.totalDiamonds}
+            value={stats?.totalDiamonds || 0}
             icon={Diamond}
             trend={7.4}
             trendLabel="vs last month"
-            loading={loading}
+            loading={statsLoading}
           />
           <StatCard
             title="Matched Pairs"
-            value={stats.matchedPairs}
+            value={stats?.matchedPairs || 0}
             icon={BadgeCheck}
             trend={3.2}
             trendLabel="vs last month"
-            loading={loading}
+            loading={statsLoading}
           />
           <StatCard
             title="Active Leads"
-            value={stats.totalLeads}
+            value={stats?.totalLeads || 0}
             icon={Users}
             trend={-2.1}
             trendLabel="vs last month"
-            loading={loading}
+            loading={statsLoading}
           />
           <StatCard
             title="Active Subscriptions"
-            value={stats.activeSubscriptions}
+            value={stats?.activeSubscriptions || 0}
             suffix=""
             icon={Coins}
             trend={12.5}
             trendLabel="vs last month"
-            loading={loading}
+            loading={statsLoading}
           />
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <InventoryChart
             title="Inventory by Shape"
-            data={inventoryData}
-            loading={loading}
+            data={shapeData || []}
+            loading={shapeLoading}
           />
           
           <InventoryChart
             title="Recent Sales by Category"
-            data={[
-              { name: "0-1 carat", value: 28 },
-              { name: "1-2 carat", value: 42 },
-              { name: "2-3 carat", value: 18 },
-              { name: "3-4 carat", value: 8 },
-              { name: "4+ carat", value: 4 },
-            ]}
-            loading={loading}
+            data={salesData || []}
+            loading={salesLoading}
           />
         </div>
       </div>
