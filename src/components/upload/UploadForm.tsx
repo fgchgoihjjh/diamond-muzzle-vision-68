@@ -1,4 +1,3 @@
-
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -28,7 +27,7 @@ export function UploadForm() {
   };
 
   const simulateProgress = () => {
-    // Simulate upload progress for demo
+    // Simulate upload progress since API doesn't provide real-time progress
     let currentProgress = 0;
     const interval = setInterval(() => {
       currentProgress += Math.random() * 10;
@@ -51,34 +50,31 @@ export function UploadForm() {
     const cleanup = simulateProgress();
 
     try {
-      // In a real implementation, you would use the actual API
-      // const response = await api.upload<UploadResult>("/upload", selectedFile);
-      
-      // For demo purposes, we'll simulate a response
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      // Use the actual API endpoint to upload the file
+      const response = await api.upload<UploadResult>("/upload", selectedFile);
       
       setProgress(100);
       
-      // Simulate response
-      const mockResult: UploadResult = {
-        totalItems: Math.floor(Math.random() * 200) + 50,
-        matchedPairs: Math.floor(Math.random() * 30) + 5,
-        errors: Math.random() > 0.7 
-          ? ["Invalid format in line 42", "Missing required field in line 73"] 
-          : [],
-      };
-      
-      setResult(mockResult);
-      
-      toast({
-        title: "Upload successful",
-        description: `Processed ${mockResult.totalItems} diamonds successfully.`,
-      });
+      if (response.error) {
+        toast({
+          variant: "destructive",
+          title: "Upload failed",
+          description: response.error,
+        });
+      } else if (response.data) {
+        setResult(response.data);
+        
+        toast({
+          title: "Upload successful",
+          description: `Processed ${response.data.totalItems} diamonds successfully.`,
+        });
+      }
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
       toast({
         variant: "destructive",
         title: "Upload failed",
-        description: "There was an error uploading your inventory.",
+        description: errorMessage,
       });
     } finally {
       setUploading(false);
