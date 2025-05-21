@@ -36,7 +36,7 @@ export default function SettingsPage() {
           </TabsList>
           
           <TabsContent value="general">
-            <SettingsForm isLoading={isLoading} />
+            <SettingsForm loading={isLoading} />
           </TabsContent>
           
           <TabsContent value="integrations">
