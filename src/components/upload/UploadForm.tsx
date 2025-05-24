@@ -1,10 +1,12 @@
+
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Upload, File, CheckCircle, XCircle, RefreshCw } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { api } from "@/lib/api";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "@/components/ui/use-toast";
+import { uploadAndProcessCSV } from "@/lib/supabase-storage";
 
 interface UploadResult {
   totalItems: number;
@@ -17,17 +19,18 @@ export function UploadForm() {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<UploadResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       setSelectedFile(e.target.files[0]);
       setResult(null);
+      setError(null);
     }
   };
 
   const simulateProgress = () => {
-    // Simulate upload progress since API doesn't provide real-time progress
     let currentProgress = 0;
     const interval = setInterval(() => {
       currentProgress += Math.random() * 10;
@@ -46,31 +49,25 @@ export function UploadForm() {
 
     setUploading(true);
     setProgress(0);
+    setError(null);
     
     const cleanup = simulateProgress();
 
     try {
-      // Use the actual API endpoint to upload the file
-      const response = await api.upload<UploadResult>("/upload", selectedFile);
+      // Use our new Supabase storage upload function
+      const uploadResult = await uploadAndProcessCSV(selectedFile);
       
       setProgress(100);
-      
-      if (response.error) {
-        toast({
-          variant: "destructive",
-          title: "Upload failed",
-          description: response.error,
-        });
-      } else if (response.data) {
-        setResult(response.data);
+      setResult(uploadResult);
         
-        toast({
-          title: "Upload successful",
-          description: `Processed ${response.data.totalItems} diamonds successfully.`,
-        });
-      }
+      toast({
+        title: "Upload successful",
+        description: `Processed ${uploadResult.totalItems} diamonds successfully.`,
+      });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
+      setError(errorMessage);
+      
       toast({
         variant: "destructive",
         title: "Upload failed",
@@ -86,6 +83,7 @@ export function UploadForm() {
     setSelectedFile(null);
     setResult(null);
     setProgress(0);
+    setError(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -145,6 +143,14 @@ export function UploadForm() {
                       {Math.round(progress)}%
                     </p>
                   </div>
+                )}
+                
+                {error && (
+                  <Alert variant="destructive" className="text-sm">
+                    <AlertDescription>
+                      {error}
+                    </AlertDescription>
+                  </Alert>
                 )}
                 
                 {result && (
