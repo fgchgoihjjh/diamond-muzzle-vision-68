@@ -1,23 +1,18 @@
-
 import { useEffect, useState } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { InventoryChart } from "@/components/dashboard/InventoryChart";
-import { Diamond, Coins, Users, BadgeCheck } from "lucide-react";
+import { ConnectionStatus } from "@/components/ConnectionStatus";
+import { Diamond, Coins, Users, BadgeCheck, Weight, DollarSign } from "lucide-react";
 import { fetchDiamonds } from "@/lib/diamond-api";
-import { Diamond as DiamondType } from "@/types/diamond";
-
-interface DashboardStats {
-  totalDiamonds: number;
-  matchedPairs: number;
-  totalLeads: number;
-  activeSubscriptions: number;
-}
+import { Diamond as DiamondType, DashboardMetrics } from "@/types/diamond";
 
 export default function Dashboard() {
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<DashboardStats>({
+  const [stats, setStats] = useState<DashboardMetrics>({
     totalDiamonds: 0,
+    totalCaratWeight: 0,
+    totalEstimatedValue: 0,
     matchedPairs: 0,
     totalLeads: 0,
     activeSubscriptions: 0,
@@ -47,8 +42,16 @@ export default function Dashboard() {
           const availableDiamonds = diamonds.filter(d => d.status === "Available").length;
           const soldDiamonds = diamonds.filter(d => d.status === "Sold").length;
           
+          // Calculate total carat weight
+          const totalCaratWeight = diamonds.reduce((sum, diamond) => sum + diamond.carat, 0);
+          
+          // Calculate total estimated value
+          const totalEstimatedValue = diamonds.reduce((sum, diamond) => sum + diamond.price, 0);
+          
           setStats({
             totalDiamonds,
+            totalCaratWeight: Math.round(totalCaratWeight * 100) / 100, // Round to 2 decimal places
+            totalEstimatedValue,
             matchedPairs: Math.floor(availableDiamonds / 2), // Simplified matching logic
             totalLeads: soldDiamonds + Math.floor(Math.random() * 20), // Mock leads
             activeSubscriptions: 18, // Mock subscriptions
@@ -78,6 +81,8 @@ export default function Dashboard() {
           console.warn("Backend unavailable, using mock data");
           setStats({
             totalDiamonds: 1287,
+            totalCaratWeight: 2574.32,
+            totalEstimatedValue: 12847500,
             matchedPairs: 42,
             totalLeads: 96,
             activeSubscriptions: 18,
@@ -98,6 +103,8 @@ export default function Dashboard() {
         // Use mock data as fallback
         setStats({
           totalDiamonds: 1287,
+          totalCaratWeight: 2574.32,
+          totalEstimatedValue: 12847500,
           matchedPairs: 42,
           totalLeads: 96,
           activeSubscriptions: 18,
@@ -122,19 +129,40 @@ export default function Dashboard() {
   return (
     <Layout>
       <div className="space-y-8">
-        <div>
-          <h1 className="text-3xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground">
-            Welcome to Diamond Muzzle. Here's an overview of your inventory.
-          </p>
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold">Dashboard</h1>
+            <p className="text-muted-foreground">
+              Welcome to Diamond Muzzle. Here's an overview of your inventory.
+            </p>
+          </div>
+          <ConnectionStatus />
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
           <StatCard
             title="Total Diamonds"
             value={stats.totalDiamonds}
             icon={Diamond}
             trend={7.4}
+            trendLabel="vs last month"
+            loading={loading}
+          />
+          <StatCard
+            title="Total Carat Weight"
+            value={stats.totalCaratWeight}
+            suffix=" ct"
+            icon={Weight}
+            trend={3.2}
+            trendLabel="vs last month"
+            loading={loading}
+          />
+          <StatCard
+            title="Total Value"
+            value={stats.totalEstimatedValue}
+            prefix="$"
+            icon={DollarSign}
+            trend={5.8}
             trendLabel="vs last month"
             loading={loading}
           />

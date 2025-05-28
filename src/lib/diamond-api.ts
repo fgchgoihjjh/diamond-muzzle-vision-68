@@ -26,6 +26,7 @@ async function getAuthHeaders(): Promise<HeadersInit> {
 export async function fetchDiamonds(): Promise<FastApiResponse<Diamond[]>> {
   try {
     const headers = await getAuthHeaders();
+    console.log("Fetching diamonds from:", `${FASTAPI_BASE_URL}/get_all_stones`);
     
     const response = await fetch(`${FASTAPI_BASE_URL}/get_all_stones`, {
       method: "GET",
@@ -33,10 +34,11 @@ export async function fetchDiamonds(): Promise<FastApiResponse<Diamond[]>> {
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
     }
 
     const data = await response.json();
+    console.log("Raw API response:", data);
     
     // Transform FastAPI response to match our Diamond interface
     const diamonds: Diamond[] = data.map((stone: any, index: number) => ({
@@ -57,6 +59,7 @@ export async function fetchDiamonds(): Promise<FastApiResponse<Diamond[]>> {
       table: stone.table ? parseFloat(stone.table) : undefined,
     }));
 
+    console.log("Transformed diamonds:", diamonds);
     return { data: diamonds };
   } catch (error) {
     console.error("Error fetching diamonds:", error);
@@ -74,6 +77,8 @@ export async function uploadDiamondCSV(file: File): Promise<FastApiResponse<any>
     const formData = new FormData();
     formData.append("file", file);
 
+    console.log("Uploading CSV to:", `${FASTAPI_BASE_URL}/upload_inventory`);
+
     const response = await fetch(`${FASTAPI_BASE_URL}/upload_inventory`, {
       method: "POST",
       headers,
@@ -81,10 +86,12 @@ export async function uploadDiamondCSV(file: File): Promise<FastApiResponse<any>
     });
 
     if (!response.ok) {
-      throw new Error(`Upload failed: ${response.status}`);
+      const errorText = await response.text();
+      throw new Error(`Upload failed: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
+    console.log("Upload response:", data);
     return { data };
   } catch (error) {
     console.error("Error uploading CSV:", error);

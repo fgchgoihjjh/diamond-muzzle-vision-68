@@ -16,3 +16,12 @@ export interface Diamond {
   depth?: number;
   table?: number;
 }
+
+export interface DashboardMetrics {
+  totalDiamonds: number;
+  totalCaratWeight: number;
+  totalEstimatedValue: number;
+  matchedPairs: number;
+  totalLeads: number;
+  activeSubscriptions: number;
+}
