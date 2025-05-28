@@ -26,18 +26,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
-
-export type Diamond = {
-  id: string;
-  stockNumber: string;
-  shape: string;
-  carat: number;
-  color: string;
-  clarity: string;
-  cut: string;
-  price: number;
-  status: string;
-};
+import { Diamond } from "@/types/diamond";
 
 interface InventoryTableProps {
   data: Diamond[];
@@ -111,13 +100,13 @@ export function InventoryTable({
             {data.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={9} className="h-24 text-center">
-                  No results found.
+                  {loading ? "Loading diamonds..." : "No diamonds found in inventory."}
                 </TableCell>
               </TableRow>
             ) : (
               data.map((diamond) => (
                 <TableRow key={diamond.id}>
-                  <TableCell className="font-mono text-sm font-bold">{diamond.stockNumber}</TableCell>
+                  <TableCell className="font-mono text-sm font-bold">{diamond.stock_number}</TableCell>
                   <TableCell>{diamond.shape}</TableCell>
                   <TableCell className="text-right">{diamond.carat.toFixed(2)}</TableCell>
                   <TableCell>{diamond.color}</TableCell>
@@ -186,8 +175,8 @@ export function InventoryTable({
                 <Label htmlFor="stockNumber" className="font-medium">Stock #</Label>
                 <Input
                   id="stockNumber"
-                  value={formData.stockNumber || ""}
-                  onChange={(e) => handleChange("stockNumber", e.target.value)}
+                  value={formData.stock_number || ""}
+                  onChange={(e) => handleChange("stock_number", e.target.value)}
                   className="font-mono"
                 />
               </div>
@@ -262,3 +251,6 @@ export function InventoryTable({
     </>
   );
 }
+
+// Export the Diamond type for backward compatibility
+export type { Diamond };

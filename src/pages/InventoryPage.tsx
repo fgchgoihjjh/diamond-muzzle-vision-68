@@ -5,7 +5,7 @@ import { InventoryTable, Diamond } from "@/components/inventory/InventoryTable";
 import { InventoryFilters } from "@/components/inventory/InventoryFilters";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, FileText } from "lucide-react";
+import { Plus, Search, FileText, RefreshCw } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { 
   Pagination, 
@@ -15,6 +15,7 @@ import {
   PaginationNext, 
   PaginationPrevious 
 } from "@/components/ui/pagination";
+import { fetchDiamonds } from "@/lib/diamond-api";
 
 export default function InventoryPage() {
   const { toast } = useToast();
@@ -22,58 +23,79 @@ export default function InventoryPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(5);
-  
+  const [totalPages, setTotalPages] = useState(1);
   const [diamonds, setDiamonds] = useState<Diamond[]>([]);
+  const [filteredDiamonds, setFilteredDiamonds] = useState<Diamond[]>([]);
+  const [error, setError] = useState<string | null>(null);
   
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        // In a real app, we would call the actual API with filters and pagination
-        // const response = await api.get<Diamond[]>(`/inventory?page=${currentPage}&...`);
-        
-        // For demo purposes, we'll use mock data
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Generate mock diamonds
-        const shapes = ["Round", "Princess", "Cushion", "Emerald", "Oval", "Pear"];
-        const colors = ["D", "E", "F", "G", "H", "I"];
-        const clarities = ["IF", "VVS1", "VVS2", "VS1", "VS2", "SI1"];
-        const cuts = ["Excellent", "Very Good", "Good"];
-        const statuses = ["Available", "Reserved", "Sold"];
-        
-        // Include the reference stock numbers provided by the user
-        const referenceStockNumbers = ["A426-051B", "A399-109B", "C307DA-620A"];
-        
-        const mockDiamonds: Diamond[] = Array.from({ length: 10 }).map((_, i) => ({
-          id: `d-${i + 1}`,
-          stockNumber: i < 3 ? referenceStockNumbers[i] : `D${10000 + i}`,
-          shape: shapes[Math.floor(Math.random() * shapes.length)],
-          carat: parseFloat((0.5 + Math.random() * 4).toFixed(2)),
-          color: colors[Math.floor(Math.random() * colors.length)],
-          clarity: clarities[Math.floor(Math.random() * clarities.length)],
-          cut: cuts[Math.floor(Math.random() * cuts.length)],
-          price: Math.floor(3000 + Math.random() * 50000),
-          status: statuses[Math.floor(Math.random() * statuses.length)],
-        }));
-        
-        setDiamonds(mockDiamonds);
-        setTotalPages(5);
-      } catch (error) {
-        console.error("Failed to fetch inventory data", error);
+  const fetchInventoryData = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await fetchDiamonds();
+      
+      if (response.error) {
+        setError(response.error);
         toast({
           variant: "destructive",
           title: "Error",
-          description: "Failed to fetch inventory data.",
+          description: response.error,
         });
-      } finally {
-        setLoading(false);
+      } else if (response.data) {
+        setDiamonds(response.data);
+        setFilteredDiamonds(response.data);
+        
+        // Calculate pagination
+        const itemsPerPage = 10;
+        setTotalPages(Math.ceil(response.data.length / itemsPerPage));
+        
+        toast({
+          title: "Inventory loaded",
+          description: `Successfully loaded ${response.data.length} diamonds.`,
+        });
       }
-    };
+    } catch (error) {
+      const errorMessage = "Failed to fetch inventory data";
+      setError(errorMessage);
+      console.error("Failed to fetch inventory data", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: errorMessage,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  useEffect(() => {
+    fetchInventoryData();
+  }, []);
+  
+  useEffect(() => {
+    // Apply search and filters
+    let filtered = diamonds;
     
-    fetchData();
-  }, [currentPage, filters]);
+    if (searchQuery.trim()) {
+      filtered = filtered.filter(diamond => 
+        diamond.stock_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        diamond.shape.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+    
+    // Apply filters
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value) {
+        filtered = filtered.filter(diamond => 
+          diamond[key as keyof Diamond]?.toString().toLowerCase().includes(value.toLowerCase())
+        );
+      }
+    });
+    
+    setFilteredDiamonds(filtered);
+    setCurrentPage(1); // Reset to first page when filters change
+  }, [searchQuery, filters, diamonds]);
   
   const handleEdit = (id: string, data: Partial<Diamond>) => {
     setDiamonds((prev) =>
@@ -82,7 +104,7 @@ export default function InventoryPage() {
     
     toast({
       title: "Diamond updated",
-      description: `Stock #${data.stockNumber || ""} has been updated.`,
+      description: `Stock #${data.stock_number || ""} has been updated.`,
     });
   };
   
@@ -110,32 +132,15 @@ export default function InventoryPage() {
   
   const handleFilterChange = (newFilters: Record<string, string>) => {
     setFilters(newFilters);
-    setCurrentPage(1);
   };
   
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, we would update the filters or call a search API endpoint
-    console.log("Searching for:", searchQuery);
-    
-    // Simple client-side filtering for the demo
-    if (searchQuery.trim()) {
-      const filtered = diamonds.filter(diamond => 
-        diamond.stockNumber.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      if (filtered.length > 0) {
-        setDiamonds(filtered);
-      } else {
-        toast({
-          title: "No results",
-          description: `No diamonds found with stock number containing "${searchQuery}"`,
-        });
-      }
-    }
+    // Search is handled by useEffect above
   };
 
   const handleExportStockNumbers = () => {
-    const stockNumbers = diamonds.map(d => d.stockNumber).join('\n');
+    const stockNumbers = filteredDiamonds.map(d => d.stock_number).join('\n');
     const blob = new Blob([stockNumbers], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -152,6 +157,15 @@ export default function InventoryPage() {
     });
   };
 
+  const handleRefresh = () => {
+    fetchInventoryData();
+  };
+
+  // Paginate the filtered diamonds
+  const itemsPerPage = 10;
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedDiamonds = filteredDiamonds.slice(startIndex, startIndex + itemsPerPage);
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -159,11 +173,15 @@ export default function InventoryPage() {
           <div>
             <h1 className="text-3xl font-bold">Inventory</h1>
             <p className="text-muted-foreground">
-              Manage your diamond inventory
+              Manage your diamond inventory ({filteredDiamonds.length} diamonds)
             </p>
           </div>
           
           <div className="flex gap-2 w-full sm:w-auto">
+            <Button onClick={handleRefresh} variant="outline" className="flex-1 sm:flex-none" disabled={loading}>
+              <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
             <Button onClick={handleExportStockNumbers} variant="outline" className="flex-1 sm:flex-none">
               <FileText className="mr-2 h-4 w-4" />
               Export Stock#
@@ -179,7 +197,7 @@ export default function InventoryPage() {
           <form onSubmit={handleSearch} className="relative flex-1">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search by stock number..."
+              placeholder="Search by stock number or shape..."
               className="pl-8"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -189,52 +207,68 @@ export default function InventoryPage() {
         
         <InventoryFilters onFilterChange={handleFilterChange} />
         
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <p className="text-red-800 text-sm">
+              <strong>Connection Error:</strong> {error}
+            </p>
+            <p className="text-red-600 text-xs mt-1">
+              Make sure your FastAPI backend is running and accessible.
+            </p>
+          </div>
+        )}
+        
         <InventoryTable
-          data={diamonds}
+          data={paginatedDiamonds}
           onEdit={handleEdit}
           onDelete={handleDelete}
           onMarkAsSold={handleMarkAsSold}
           loading={loading}
         />
         
-        <Pagination>
-          <PaginationContent>
-            <PaginationItem>
-              <PaginationPrevious 
-                href="#" 
-                onClick={(e) => {
-                  e.preventDefault();
-                  if (currentPage > 1) setCurrentPage(currentPage - 1);
-                }}
-              />
-            </PaginationItem>
-            
-            {Array.from({ length: totalPages }).map((_, i) => (
-              <PaginationItem key={i}>
-                <PaginationLink
-                  href="#"
-                  isActive={currentPage === i + 1}
+        {filteredDiamonds.length > itemsPerPage && (
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious 
+                  href="#" 
                   onClick={(e) => {
                     e.preventDefault();
-                    setCurrentPage(i + 1);
+                    if (currentPage > 1) setCurrentPage(currentPage - 1);
                   }}
-                >
-                  {i + 1}
-                </PaginationLink>
+                />
               </PaginationItem>
-            ))}
-            
-            <PaginationItem>
-              <PaginationNext 
-                href="#" 
-                onClick={(e) => {
-                  e.preventDefault();
-                  if (currentPage < totalPages) setCurrentPage(currentPage + 1);
-                }}
-              />
-            </PaginationItem>
-          </PaginationContent>
-        </Pagination>
+              
+              {Array.from({ length: Math.min(totalPages, 5) }).map((_, i) => {
+                const pageNum = i + 1;
+                return (
+                  <PaginationItem key={i}>
+                    <PaginationLink
+                      href="#"
+                      isActive={currentPage === pageNum}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setCurrentPage(pageNum);
+                      }}
+                    >
+                      {pageNum}
+                    </PaginationLink>
+                  </PaginationItem>
+                );
+              })}
+              
+              <PaginationItem>
+                <PaginationNext 
+                  href="#" 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+                  }}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        )}
       </div>
     </Layout>
   );

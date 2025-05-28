@@ -6,12 +6,13 @@ import { Upload, File, CheckCircle, XCircle, RefreshCw } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "@/components/ui/use-toast";
-import { uploadAndProcessCSV } from "@/lib/supabase-storage";
+import { uploadDiamondCSV } from "@/lib/diamond-api";
 
 interface UploadResult {
   totalItems: number;
   matchedPairs: number;
   errors: string[];
+  message?: string;
 }
 
 export function UploadForm() {
@@ -54,16 +55,30 @@ export function UploadForm() {
     const cleanup = simulateProgress();
 
     try {
-      // Use our new Supabase storage upload function
-      const uploadResult = await uploadAndProcessCSV(selectedFile);
+      const response = await uploadDiamondCSV(selectedFile);
       
       setProgress(100);
-      setResult(uploadResult);
+      
+      if (response.error) {
+        setError(response.error);
+        toast({
+          variant: "destructive",
+          title: "Upload failed",
+          description: response.error,
+        });
+      } else if (response.data) {
+        setResult({
+          totalItems: response.data.totalItems || response.data.total_items || 0,
+          matchedPairs: response.data.matchedPairs || response.data.matched_pairs || 0,
+          errors: response.data.errors || [],
+          message: response.data.message,
+        });
         
-      toast({
-        title: "Upload successful",
-        description: `Processed ${uploadResult.totalItems} diamonds successfully.`,
-      });
+        toast({
+          title: "Upload successful",
+          description: `Processed ${response.data.totalItems || response.data.total_items || 0} diamonds successfully.`,
+        });
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
       setError(errorMessage);
@@ -104,7 +119,7 @@ export function UploadForm() {
                   Drag and drop your CSV file here, or <span className="text-diamond-600 font-medium">browse</span> to select
                 </p>
                 <p className="mt-2 text-xs text-gray-500">
-                  Supported format: CSV
+                  Supported format: CSV (will be sent to FastAPI backend)
                 </p>
                 <input
                   ref={fileInputRef}
@@ -140,7 +155,7 @@ export function UploadForm() {
                   <div className="space-y-2">
                     <Progress value={progress} className="h-2" />
                     <p className="text-xs text-gray-500 text-right">
-                      {Math.round(progress)}%
+                      {Math.round(progress)}% - Uploading to FastAPI backend...
                     </p>
                   </div>
                 )}
@@ -148,7 +163,9 @@ export function UploadForm() {
                 {error && (
                   <Alert variant="destructive" className="text-sm">
                     <AlertDescription>
-                      {error}
+                      <strong>Backend Error:</strong> {error}
+                      <br />
+                      <span className="text-xs">Make sure your FastAPI backend is running and the upload endpoint is available.</span>
                     </AlertDescription>
                   </Alert>
                 )}
@@ -159,6 +176,10 @@ export function UploadForm() {
                       <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
                       <p className="text-sm font-medium">Upload complete</p>
                     </div>
+                    
+                    {result.message && (
+                      <p className="text-sm text-gray-600">{result.message}</p>
+                    )}
                     
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       <div>
@@ -198,7 +219,7 @@ export function UploadForm() {
                     disabled={uploading || !!result}
                   >
                     <Upload className="h-4 w-4 mr-2" />
-                    {uploading ? "Uploading..." : "Upload"}
+                    {uploading ? "Uploading..." : "Upload to Backend"}
                   </Button>
                 </div>
               </div>
@@ -210,15 +231,15 @@ export function UploadForm() {
       <div className="space-y-4">
         <h3 className="text-lg font-medium">Instructions</h3>
         <div className="space-y-2 text-sm text-gray-700">
-          <p>Please ensure your CSV file follows the required format:</p>
+          <p>Your CSV file will be sent to the FastAPI backend for processing:</p>
           <ul className="list-disc list-inside space-y-1 text-gray-600">
-            <li>One diamond per row</li>
-            <li>Required columns: Stock #, Shape, Carat, Color, Clarity, Cut, Price</li>
-            <li>Optional columns: Certificate, Measurements, Depth, Table</li>
-            <li>First row should contain column headers</li>
+            <li>File will be uploaded to <code>/api/v1/upload_inventory</code></li>
+            <li>Backend will process and validate the diamond data</li>
+            <li>Results will show total items processed and any errors</li>
+            <li>Processed diamonds will be available in your inventory</li>
           </ul>
           <p className="mt-4 text-gray-500 text-xs">
-            Need a template? <a href="#" className="text-diamond-600 hover:underline">Download sample CSV</a>
+            Make sure your FastAPI backend is running and accessible at mazalbot.app
           </p>
         </div>
       </div>

@@ -4,7 +4,8 @@ import { Layout } from "@/components/layout/Layout";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { InventoryChart } from "@/components/dashboard/InventoryChart";
 import { Diamond, Coins, Users, BadgeCheck } from "lucide-react";
-import { api } from "@/lib/api";
+import { fetchDiamonds } from "@/lib/diamond-api";
+import { Diamond as DiamondType } from "@/types/diamond";
 
 interface DashboardStats {
   totalDiamonds: number;
@@ -35,14 +36,66 @@ export default function Dashboard() {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // In a real app, we would call the actual API
-        // const response = await api.get<DashboardStats>('/stats');
-        // setStats(response.data);
+        // Fetch real diamond data from FastAPI backend
+        const response = await fetchDiamonds();
         
-        // For demo purposes, we'll use mock data
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        if (response.data) {
+          const diamonds = response.data;
+          
+          // Calculate real statistics
+          const totalDiamonds = diamonds.length;
+          const availableDiamonds = diamonds.filter(d => d.status === "Available").length;
+          const soldDiamonds = diamonds.filter(d => d.status === "Sold").length;
+          
+          setStats({
+            totalDiamonds,
+            matchedPairs: Math.floor(availableDiamonds / 2), // Simplified matching logic
+            totalLeads: soldDiamonds + Math.floor(Math.random() * 20), // Mock leads
+            activeSubscriptions: 18, // Mock subscriptions
+          });
+          
+          // Calculate real inventory distribution by shape
+          const shapeDistribution = diamonds.reduce((acc: Record<string, number>, diamond) => {
+            acc[diamond.shape] = (acc[diamond.shape] || 0) + 1;
+            return acc;
+          }, {});
+          
+          const chartData = [
+            { name: "Round", value: shapeDistribution["Round"] || 0 },
+            { name: "Princess", value: shapeDistribution["Princess"] || 0 },
+            { name: "Cushion", value: shapeDistribution["Cushion"] || 0 },
+            { name: "Oval", value: shapeDistribution["Oval"] || 0 },
+            { name: "Pear", value: shapeDistribution["Pear"] || 0 },
+            { name: "Other", value: Object.entries(shapeDistribution)
+              .filter(([shape]) => !["Round", "Princess", "Cushion", "Oval", "Pear"].includes(shape))
+              .reduce((sum, [, count]) => sum + count, 0) 
+            },
+          ];
+          
+          setInventoryData(chartData);
+        } else {
+          // Fallback to mock data if backend is unavailable
+          console.warn("Backend unavailable, using mock data");
+          setStats({
+            totalDiamonds: 1287,
+            matchedPairs: 42,
+            totalLeads: 96,
+            activeSubscriptions: 18,
+          });
+          
+          setInventoryData([
+            { name: "Round", value: 582 },
+            { name: "Princess", value: 231 },
+            { name: "Cushion", value: 142 },
+            { name: "Oval", value: 118 },
+            { name: "Pear", value: 64 },
+            { name: "Other", value: 150 },
+          ]);
+        }
         
-        // Mock data
+      } catch (error) {
+        console.error("Failed to fetch dashboard data", error);
+        // Use mock data as fallback
         setStats({
           totalDiamonds: 1287,
           matchedPairs: 42,
@@ -58,9 +111,6 @@ export default function Dashboard() {
           { name: "Pear", value: 64 },
           { name: "Other", value: 150 },
         ]);
-        
-      } catch (error) {
-        console.error("Failed to fetch dashboard data", error);
       } finally {
         setLoading(false);
       }
