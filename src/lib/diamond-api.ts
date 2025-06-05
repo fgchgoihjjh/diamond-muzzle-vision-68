@@ -2,7 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { Diamond } from "@/types/diamond";
 
-const FASTAPI_BASE_URL = "https://mazalbot.app/api/v1";
+const FASTAPI_BASE_URL = "https://api.mazalbot.com/api/v1";
 
 interface FastApiResponse<T> {
   data?: T;
@@ -27,13 +27,19 @@ export async function fetchDiamonds(): Promise<FastApiResponse<Diamond[]>> {
   try {
     const headers = await getAuthHeaders();
     console.log("Fetching diamonds from:", `${FASTAPI_BASE_URL}/get_all_stones`);
+    console.log("Request headers:", headers);
     
     const response = await fetch(`${FASTAPI_BASE_URL}/get_all_stones`, {
       method: "GET",
       headers,
     });
 
+    console.log("Response status:", response.status);
+    console.log("Response headers:", Object.fromEntries(response.headers.entries()));
+
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error("HTTP error response:", errorText);
       throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
     }
 
@@ -63,6 +69,14 @@ export async function fetchDiamonds(): Promise<FastApiResponse<Diamond[]>> {
     return { data: diamonds };
   } catch (error) {
     console.error("Error fetching diamonds:", error);
+    
+    // Enhanced error handling with more specific messages
+    if (error instanceof TypeError && error.message === "Failed to fetch") {
+      return { 
+        error: "Unable to connect to backend server. Please ensure your FastAPI backend is running and CORS is configured properly." 
+      };
+    }
+    
     return { 
       error: error instanceof Error ? error.message : "Failed to fetch diamonds from backend" 
     };
@@ -78,6 +92,7 @@ export async function uploadDiamondCSV(file: File): Promise<FastApiResponse<any>
     formData.append("file", file);
 
     console.log("Uploading CSV to:", `${FASTAPI_BASE_URL}/upload_inventory`);
+    console.log("Upload headers:", headers);
 
     const response = await fetch(`${FASTAPI_BASE_URL}/upload_inventory`, {
       method: "POST",
@@ -85,8 +100,11 @@ export async function uploadDiamondCSV(file: File): Promise<FastApiResponse<any>
       body: formData,
     });
 
+    console.log("Upload response status:", response.status);
+
     if (!response.ok) {
       const errorText = await response.text();
+      console.error("Upload error response:", errorText);
       throw new Error(`Upload failed: ${response.status} - ${errorText}`);
     }
 
@@ -95,6 +113,13 @@ export async function uploadDiamondCSV(file: File): Promise<FastApiResponse<any>
     return { data };
   } catch (error) {
     console.error("Error uploading CSV:", error);
+    
+    if (error instanceof TypeError && error.message === "Failed to fetch") {
+      return { 
+        error: "Unable to connect to backend server for upload. Please ensure your FastAPI backend is running and CORS is configured properly." 
+      };
+    }
+    
     return { 
       error: error instanceof Error ? error.message : "Failed to upload CSV" 
     };

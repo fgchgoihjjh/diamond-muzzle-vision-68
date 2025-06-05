@@ -1,32 +1,54 @@
 
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { CheckCircle, XCircle, Loader2, AlertTriangle } from "lucide-react";
 import { fetchDiamonds } from "@/lib/diamond-api";
 
 export function ConnectionStatus() {
-  const [status, setStatus] = useState<"checking" | "connected" | "disconnected">("checking");
+  const [status, setStatus] = useState<"checking" | "connected" | "disconnected" | "cors-error">("checking");
   const [lastCheck, setLastCheck] = useState<Date | null>(null);
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
 
   const checkConnection = async () => {
     setStatus("checking");
+    setErrorDetails(null);
+    
     try {
+      console.log("Connection status: Starting connection check...");
       const response = await fetchDiamonds();
+      
       if (response.data && response.data.length >= 0) {
+        console.log("Connection status: Backend connected successfully");
         setStatus("connected");
+        setErrorDetails(null);
+      } else if (response.error) {
+        console.log("Connection status: Backend error -", response.error);
+        
+        // Detect CORS issues
+        if (response.error.includes("CORS") || response.error.includes("connect to backend")) {
+          setStatus("cors-error");
+          setErrorDetails("CORS configuration needed on backend");
+        } else {
+          setStatus("disconnected");
+          setErrorDetails(response.error);
+        }
       } else {
         setStatus("disconnected");
+        setErrorDetails("Unknown error occurred");
       }
     } catch (error) {
+      console.log("Connection status: Connection failed -", error);
       setStatus("disconnected");
+      setErrorDetails(error instanceof Error ? error.message : "Connection failed");
     }
+    
     setLastCheck(new Date());
   };
 
   useEffect(() => {
     checkConnection();
-    // Check connection every 5 minutes
-    const interval = setInterval(checkConnection, 5 * 60 * 1000);
+    // Check connection every 30 seconds for more responsive feedback
+    const interval = setInterval(checkConnection, 30 * 1000);
     return () => clearInterval(interval);
   }, []);
 
@@ -43,6 +65,12 @@ export function ConnectionStatus() {
           icon: <CheckCircle className="h-3 w-3" />,
           text: "Backend Connected",
           variant: "default" as const,
+        };
+      case "cors-error":
+        return {
+          icon: <AlertTriangle className="h-3 w-3" />,
+          text: "CORS Issue",
+          variant: "destructive" as const,
         };
       case "disconnected":
         return {
@@ -64,6 +92,11 @@ export function ConnectionStatus() {
       {lastCheck && (
         <span className="text-xs text-muted-foreground">
           Last checked: {lastCheck.toLocaleTimeString()}
+        </span>
+      )}
+      {errorDetails && status !== "connected" && (
+        <span className="text-xs text-red-600 max-w-xs truncate" title={errorDetails}>
+          {errorDetails}
         </span>
       )}
     </div>

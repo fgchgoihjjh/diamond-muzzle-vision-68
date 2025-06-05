@@ -9,12 +9,68 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      app_settings: {
+        Row: {
+          created_at: string | null
+          id: string
+          setting_key: string
+          setting_value: Json
+          updated_at: string | null
+          updated_by_telegram_id: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          setting_key: string
+          setting_value: Json
+          updated_at?: string | null
+          updated_by_telegram_id?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          setting_key?: string
+          setting_value?: Json
+          updated_at?: string | null
+          updated_by_telegram_id?: number | null
+        }
+        Relationships: []
+      }
+      blocked_users: {
+        Row: {
+          blocked_by_telegram_id: number
+          created_at: string
+          id: string
+          reason: string | null
+          telegram_id: number
+          updated_at: string
+        }
+        Insert: {
+          blocked_by_telegram_id: number
+          created_at?: string
+          id?: string
+          reason?: string | null
+          telegram_id: number
+          updated_at?: string
+        }
+        Update: {
+          blocked_by_telegram_id?: number
+          created_at?: string
+          id?: string
+          reason?: string | null
+          telegram_id?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       chat_messages: {
         Row: {
           content: string
           created_at: string | null
           id: string
           role: string
+          session_id: string | null
+          telegram_id: number | null
           user_id: string | null
         }
         Insert: {
@@ -22,6 +78,8 @@ export type Database = {
           created_at?: string | null
           id?: string
           role: string
+          session_id?: string | null
+          telegram_id?: number | null
           user_id?: string | null
         }
         Update: {
@@ -29,14 +87,91 @@ export type Database = {
           created_at?: string | null
           id?: string
           role?: string
+          session_id?: string | null
+          telegram_id?: number | null
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "chat_messages_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "chat_sessions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "chat_messages_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_sessions: {
+        Row: {
+          created_at: string
+          id: string
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      cost_tracking: {
+        Row: {
+          amount: number
+          cost_type: string
+          currency: string | null
+          id: string
+          recorded_at: string | null
+          service_name: string | null
+          telegram_id: number
+          usage_details: Json | null
+          user_id: string | null
+        }
+        Insert: {
+          amount: number
+          cost_type: string
+          currency?: string | null
+          id?: string
+          recorded_at?: string | null
+          service_name?: string | null
+          telegram_id: number
+          usage_details?: Json | null
+          user_id?: string | null
+        }
+        Update: {
+          amount?: number
+          cost_type?: string
+          currency?: string | null
+          id?: string
+          recorded_at?: string | null
+          service_name?: string | null
+          telegram_id?: number
+          usage_details?: Json | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cost_tracking_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -74,6 +209,448 @@ export type Database = {
         }
         Relationships: []
       }
+      inventory: {
+        Row: {
+          certificate_comment: string | null
+          certificate_number: number | null
+          clarity: string
+          color: string
+          created_at: string
+          culet: string | null
+          cut: string | null
+          depth: number | null
+          depth_percentage: number | null
+          fluorescence: string | null
+          gridle: string | null
+          id: string
+          lab: string | null
+          length: number | null
+          picture: string | null
+          polish: string | null
+          price_per_carat: number | null
+          rapnet: number | null
+          ratio: number | null
+          shape: string
+          status: string | null
+          stock_number: string
+          symmetry: string | null
+          table_percentage: number | null
+          updated_at: string
+          user_id: number
+          weight: number
+          width: number | null
+        }
+        Insert: {
+          certificate_comment?: string | null
+          certificate_number?: number | null
+          clarity: string
+          color: string
+          created_at?: string
+          culet?: string | null
+          cut?: string | null
+          depth?: number | null
+          depth_percentage?: number | null
+          fluorescence?: string | null
+          gridle?: string | null
+          id?: string
+          lab?: string | null
+          length?: number | null
+          picture?: string | null
+          polish?: string | null
+          price_per_carat?: number | null
+          rapnet?: number | null
+          ratio?: number | null
+          shape: string
+          status?: string | null
+          stock_number: string
+          symmetry?: string | null
+          table_percentage?: number | null
+          updated_at?: string
+          user_id: number
+          weight: number
+          width?: number | null
+        }
+        Update: {
+          certificate_comment?: string | null
+          certificate_number?: number | null
+          clarity?: string
+          color?: string
+          created_at?: string
+          culet?: string | null
+          cut?: string | null
+          depth?: number | null
+          depth_percentage?: number | null
+          fluorescence?: string | null
+          gridle?: string | null
+          id?: string
+          lab?: string | null
+          length?: number | null
+          picture?: string | null
+          polish?: string | null
+          price_per_carat?: number | null
+          rapnet?: number | null
+          ratio?: number | null
+          shape?: string
+          status?: string | null
+          stock_number?: string
+          symmetry?: string | null
+          table_percentage?: number | null
+          updated_at?: string
+          user_id?: number
+          weight?: number
+          width?: number | null
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          delivered_at: string | null
+          id: string
+          message_content: string
+          message_type: string
+          metadata: Json | null
+          read_at: string | null
+          sent_at: string
+          status: string
+          telegram_id: number
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          delivered_at?: string | null
+          id?: string
+          message_content: string
+          message_type?: string
+          metadata?: Json | null
+          read_at?: string | null
+          sent_at?: string
+          status?: string
+          telegram_id: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          delivered_at?: string | null
+          id?: string
+          message_content?: string
+          message_type?: string
+          metadata?: Json | null
+          read_at?: string | null
+          sent_at?: string
+          status?: string
+          telegram_id?: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      page_visits: {
+        Row: {
+          created_at: string | null
+          id: string
+          page_path: string
+          page_title: string | null
+          referrer: string | null
+          session_id: string | null
+          time_spent: unknown | null
+          visit_timestamp: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          page_path: string
+          page_title?: string | null
+          referrer?: string | null
+          session_id?: string | null
+          time_spent?: unknown | null
+          visit_timestamp?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          page_path?: string
+          page_title?: string | null
+          referrer?: string | null
+          session_id?: string | null
+          time_spent?: unknown | null
+          visit_timestamp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "page_visits_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "user_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscriptions: {
+        Row: {
+          amount: number | null
+          billing_cycle: string | null
+          created_at: string | null
+          currency: string | null
+          end_date: string | null
+          id: string
+          plan_name: string
+          start_date: string | null
+          status: string
+          telegram_id: number
+          trial_end_date: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          amount?: number | null
+          billing_cycle?: string | null
+          created_at?: string | null
+          currency?: string | null
+          end_date?: string | null
+          id?: string
+          plan_name: string
+          start_date?: string | null
+          status?: string
+          telegram_id: number
+          trial_end_date?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          amount?: number | null
+          billing_cycle?: string | null
+          created_at?: string | null
+          currency?: string | null
+          end_date?: string | null
+          id?: string
+          plan_name?: string
+          start_date?: string | null
+          status?: string
+          telegram_id?: number
+          trial_end_date?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_analytics: {
+        Row: {
+          api_calls_count: number | null
+          cost_per_user: number | null
+          created_at: string | null
+          id: string
+          last_active: string | null
+          lifetime_value: number | null
+          profit_loss: number | null
+          revenue_per_user: number | null
+          storage_used_mb: number | null
+          subscription_status: string | null
+          telegram_id: number
+          total_time_spent: unknown | null
+          total_visits: number | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          api_calls_count?: number | null
+          cost_per_user?: number | null
+          created_at?: string | null
+          id?: string
+          last_active?: string | null
+          lifetime_value?: number | null
+          profit_loss?: number | null
+          revenue_per_user?: number | null
+          storage_used_mb?: number | null
+          subscription_status?: string | null
+          telegram_id: number
+          total_time_spent?: unknown | null
+          total_visits?: number | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          api_calls_count?: number | null
+          cost_per_user?: number | null
+          created_at?: string | null
+          id?: string
+          last_active?: string | null
+          lifetime_value?: number | null
+          profit_loss?: number | null
+          revenue_per_user?: number | null
+          storage_used_mb?: number | null
+          subscription_status?: string | null
+          telegram_id?: number
+          total_time_spent?: unknown | null
+          total_visits?: number | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_analytics_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_management_log: {
+        Row: {
+          action_type: string
+          admin_telegram_id: number
+          changes: Json | null
+          created_at: string | null
+          id: string
+          reason: string | null
+          target_telegram_id: number | null
+          target_user_id: string | null
+        }
+        Insert: {
+          action_type: string
+          admin_telegram_id: number
+          changes?: Json | null
+          created_at?: string | null
+          id?: string
+          reason?: string | null
+          target_telegram_id?: number | null
+          target_user_id?: string | null
+        }
+        Update: {
+          action_type?: string
+          admin_telegram_id?: number
+          changes?: Json | null
+          created_at?: string | null
+          id?: string
+          reason?: string | null
+          target_telegram_id?: number | null
+          target_user_id?: string | null
+        }
+        Relationships: []
+      }
+      user_profiles: {
+        Row: {
+          created_at: string | null
+          first_name: string
+          id: string
+          is_premium: boolean | null
+          language_code: string | null
+          last_login: string | null
+          last_name: string | null
+          notes: string | null
+          payment_status: string | null
+          phone_number: string | null
+          photo_url: string | null
+          status: string | null
+          subscription_plan: string | null
+          telegram_id: number
+          updated_at: string | null
+          username: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          first_name: string
+          id?: string
+          is_premium?: boolean | null
+          language_code?: string | null
+          last_login?: string | null
+          last_name?: string | null
+          notes?: string | null
+          payment_status?: string | null
+          phone_number?: string | null
+          photo_url?: string | null
+          status?: string | null
+          subscription_plan?: string | null
+          telegram_id: number
+          updated_at?: string | null
+          username?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          first_name?: string
+          id?: string
+          is_premium?: boolean | null
+          language_code?: string | null
+          last_login?: string | null
+          last_name?: string | null
+          notes?: string | null
+          payment_status?: string | null
+          phone_number?: string | null
+          photo_url?: string | null
+          status?: string | null
+          subscription_plan?: string | null
+          telegram_id?: number
+          updated_at?: string | null
+          username?: string | null
+        }
+        Relationships: []
+      }
+      user_sessions: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          pages_visited: number | null
+          session_end: string | null
+          session_start: string | null
+          telegram_id: number
+          total_duration: unknown | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          pages_visited?: number | null
+          session_end?: string | null
+          session_start?: string | null
+          telegram_id: number
+          total_duration?: unknown | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          pages_visited?: number | null
+          session_end?: string | null
+          session_start?: string | null
+          telegram_id?: number
+          total_duration?: unknown | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
           created_at: string | null
@@ -97,7 +674,21 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      delete_diamond: {
+        Args: { p_stock_number: string; p_user_id: number }
+        Returns: boolean
+      }
+      get_user_statistics: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          total_users: number
+          active_users: number
+          premium_users: number
+          blocked_users: number
+          users_with_phone: number
+          recent_signups: number
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

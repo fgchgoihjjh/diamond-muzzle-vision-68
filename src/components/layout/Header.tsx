@@ -1,14 +1,20 @@
+
 import { Bell, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { ConnectionStatus } from "@/components/ConnectionStatus";
+
 export function Header() {
-  return <header className="h-16 border-b border-border flex items-center justify-between px-4 bg-background">
+  return (
+    <header className="h-16 border-b border-border flex items-center justify-between px-4 bg-background">
       <div>
         <h1 className="text-xl font-semibold text-gray-800 px-[45px]">Diamond Muzzle</h1>
       </div>
       
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-4">
+        <ConnectionStatus />
+        
         <Button variant="ghost" size="icon" className="relative text-gray-500 hover:text-gray-800">
           <Bell size={20} />
           <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-diamond-500"></span>
@@ -35,5 +41,6 @@ export function Header() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-    </header>;
+    </header>
+  );
 }
