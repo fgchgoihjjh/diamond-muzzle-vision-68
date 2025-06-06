@@ -9,6 +9,50 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      api_usage: {
+        Row: {
+          api_type: string
+          client_id: string | null
+          cost: number | null
+          created_at: string
+          id: string
+          request_data: Json | null
+          response_data: Json | null
+          telegram_id: number | null
+          tokens_used: number | null
+        }
+        Insert: {
+          api_type: string
+          client_id?: string | null
+          cost?: number | null
+          created_at?: string
+          id?: string
+          request_data?: Json | null
+          response_data?: Json | null
+          telegram_id?: number | null
+          tokens_used?: number | null
+        }
+        Update: {
+          api_type?: string
+          client_id?: string | null
+          cost?: number | null
+          created_at?: string
+          id?: string
+          request_data?: Json | null
+          response_data?: Json | null
+          telegram_id?: number | null
+          tokens_used?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_usage_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       app_settings: {
         Row: {
           created_at: string | null
@@ -62,6 +106,79 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      chat_conversation_messages: {
+        Row: {
+          content: string
+          conversation_id: string | null
+          created_at: string
+          id: string
+          role: string
+          tokens_used: number | null
+        }
+        Insert: {
+          content: string
+          conversation_id?: string | null
+          created_at?: string
+          id?: string
+          role: string
+          tokens_used?: number | null
+        }
+        Update: {
+          content?: string
+          conversation_id?: string | null
+          created_at?: string
+          id?: string
+          role?: string
+          tokens_used?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_conversation_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "chat_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_conversations: {
+        Row: {
+          client_id: string | null
+          created_at: string
+          id: string
+          is_active: boolean | null
+          session_title: string | null
+          telegram_id: number | null
+          updated_at: string
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          session_title?: string | null
+          telegram_id?: number | null
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          session_title?: string | null
+          telegram_id?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_conversations_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       chat_messages: {
         Row: {
@@ -129,6 +246,45 @@ export type Database = {
           title?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      clients: {
+        Row: {
+          created_at: string
+          email: string | null
+          first_name: string
+          id: string
+          last_active: string | null
+          last_name: string
+          phone: string | null
+          status: string
+          telegram_id: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          first_name: string
+          id?: string
+          last_active?: string | null
+          last_name: string
+          phone?: string | null
+          status?: string
+          telegram_id?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          first_name?: string
+          id?: string
+          last_active?: string | null
+          last_name?: string
+          phone?: string | null
+          status?: string
+          telegram_id?: number | null
+          updated_at?: string
         }
         Relationships: []
       }

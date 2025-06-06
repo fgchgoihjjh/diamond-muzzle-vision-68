@@ -9,6 +9,7 @@ import InventoryPage from "./pages/InventoryPage";
 import UploadPage from "./pages/UploadPage";
 import SettingsPage from "./pages/SettingsPage";
 import InsightsPage from "./pages/InsightsPage";
+import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,6 +26,7 @@ const App = () => (
           <Route path="/upload" element={<UploadPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/insights" element={<InsightsPage />} />
+          <Route path="/admin" element={<AdminDashboard />} />
           {/* You'll need to implement these pages */}
           <Route path="/queries" element={<Dashboard />} />
           <Route path="/payments" element={<Dashboard />} />
