@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { StatCard } from "@/components/dashboard/StatCard";
@@ -31,11 +32,13 @@ export default function Dashboard() {
     const fetchData = async () => {
       setLoading(true);
       try {
+        console.log("Dashboard: Fetching real diamond data from FastAPI backend...");
         // Fetch real diamond data from FastAPI backend
         const response = await fetchDiamonds();
         
         if (response.data) {
           const diamonds = response.data;
+          console.log("Dashboard: Successfully loaded", diamonds.length, "diamonds");
           
           // Calculate real statistics
           const totalDiamonds = diamonds.length;
@@ -53,7 +56,7 @@ export default function Dashboard() {
             totalCaratWeight: Math.round(totalCaratWeight * 100) / 100, // Round to 2 decimal places
             totalEstimatedValue,
             matchedPairs: Math.floor(availableDiamonds / 2), // Simplified matching logic
-            totalLeads: soldDiamonds + Math.floor(Math.random() * 20), // Mock leads
+            totalLeads: soldDiamonds + Math.floor(Math.random() * 20), // Mock leads based on sales
             activeSubscriptions: 18, // Mock subscriptions
           });
           
@@ -76,47 +79,48 @@ export default function Dashboard() {
           ];
           
           setInventoryData(chartData);
+          console.log("Dashboard: Updated stats and inventory distribution");
         } else {
           // Fallback to mock data if backend is unavailable
-          console.warn("Backend unavailable, using mock data");
+          console.warn("Dashboard: Backend unavailable, using mock data");
           setStats({
-            totalDiamonds: 1287,
-            totalCaratWeight: 2574.32,
-            totalEstimatedValue: 12847500,
-            matchedPairs: 42,
-            totalLeads: 96,
-            activeSubscriptions: 18,
+            totalDiamonds: 0,
+            totalCaratWeight: 0,
+            totalEstimatedValue: 0,
+            matchedPairs: 0,
+            totalLeads: 0,
+            activeSubscriptions: 0,
           });
           
           setInventoryData([
-            { name: "Round", value: 582 },
-            { name: "Princess", value: 231 },
-            { name: "Cushion", value: 142 },
-            { name: "Oval", value: 118 },
-            { name: "Pear", value: 64 },
-            { name: "Other", value: 150 },
+            { name: "Round", value: 0 },
+            { name: "Princess", value: 0 },
+            { name: "Cushion", value: 0 },
+            { name: "Oval", value: 0 },
+            { name: "Pear", value: 0 },
+            { name: "Other", value: 0 },
           ]);
         }
         
       } catch (error) {
-        console.error("Failed to fetch dashboard data", error);
-        // Use mock data as fallback
+        console.error("Dashboard: Failed to fetch dashboard data", error);
+        // Use empty data as fallback
         setStats({
-          totalDiamonds: 1287,
-          totalCaratWeight: 2574.32,
-          totalEstimatedValue: 12847500,
-          matchedPairs: 42,
-          totalLeads: 96,
-          activeSubscriptions: 18,
+          totalDiamonds: 0,
+          totalCaratWeight: 0,
+          totalEstimatedValue: 0,
+          matchedPairs: 0,
+          totalLeads: 0,
+          activeSubscriptions: 0,
         });
         
         setInventoryData([
-          { name: "Round", value: 582 },
-          { name: "Princess", value: 231 },
-          { name: "Cushion", value: 142 },
-          { name: "Oval", value: 118 },
-          { name: "Pear", value: 64 },
-          { name: "Other", value: 150 },
+          { name: "Round", value: 0 },
+          { name: "Princess", value: 0 },
+          { name: "Cushion", value: 0 },
+          { name: "Oval", value: 0 },
+          { name: "Pear", value: 0 },
+          { name: "Other", value: 0 },
         ]);
       } finally {
         setLoading(false);
@@ -131,9 +135,9 @@ export default function Dashboard() {
       <div className="space-y-8">
         <div className="flex justify-between items-start">
           <div>
-            <h1 className="text-3xl font-bold">Dashboard</h1>
+            <h1 className="text-3xl font-bold">Diamond Muzzle Dashboard</h1>
             <p className="text-muted-foreground">
-              Welcome to Diamond Muzzle. Here's an overview of your inventory.
+              Real-time overview of your diamond inventory connected to FastAPI backend.
             </p>
           </div>
           <ConnectionStatus />

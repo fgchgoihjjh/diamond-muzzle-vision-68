@@ -83,6 +83,94 @@ export async function fetchDiamonds(): Promise<FastApiResponse<Diamond[]>> {
   }
 }
 
+export async function updateDiamond(id: string, diamondData: Partial<Diamond>): Promise<FastApiResponse<Diamond>> {
+  try {
+    const headers = await getAuthHeaders();
+    console.log("Updating diamond:", id, diamondData);
+
+    const response = await fetch(`${FASTAPI_BASE_URL}/update_stone/${id}`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify(diamondData),
+    });
+
+    console.log("Update response status:", response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Update error response:", errorText);
+      throw new Error(`Update failed: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    console.log("Update response:", data);
+    return { data };
+  } catch (error) {
+    console.error("Error updating diamond:", error);
+    return { 
+      error: error instanceof Error ? error.message : "Failed to update diamond" 
+    };
+  }
+}
+
+export async function deleteDiamond(id: string): Promise<FastApiResponse<void>> {
+  try {
+    const headers = await getAuthHeaders();
+    console.log("Deleting diamond:", id);
+
+    const response = await fetch(`${FASTAPI_BASE_URL}/delete_stone/${id}`, {
+      method: "DELETE",
+      headers,
+    });
+
+    console.log("Delete response status:", response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Delete error response:", errorText);
+      throw new Error(`Delete failed: ${response.status} - ${errorText}`);
+    }
+
+    console.log("Diamond deleted successfully");
+    return { data: undefined };
+  } catch (error) {
+    console.error("Error deleting diamond:", error);
+    return { 
+      error: error instanceof Error ? error.message : "Failed to delete diamond" 
+    };
+  }
+}
+
+export async function markDiamondAsSold(id: string): Promise<FastApiResponse<Diamond>> {
+  try {
+    const headers = await getAuthHeaders();
+    console.log("Marking diamond as sold:", id);
+
+    const response = await fetch(`${FASTAPI_BASE_URL}/sold`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ stone_id: id }),
+    });
+
+    console.log("Mark as sold response status:", response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Mark as sold error response:", errorText);
+      throw new Error(`Mark as sold failed: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    console.log("Mark as sold response:", data);
+    return { data };
+  } catch (error) {
+    console.error("Error marking diamond as sold:", error);
+    return { 
+      error: error instanceof Error ? error.message : "Failed to mark diamond as sold" 
+    };
+  }
+}
+
 export async function uploadDiamondCSV(file: File): Promise<FastApiResponse<any>> {
   try {
     const headers = await getAuthHeaders();

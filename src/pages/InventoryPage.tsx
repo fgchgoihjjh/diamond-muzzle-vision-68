@@ -15,7 +15,7 @@ import {
   PaginationNext, 
   PaginationPrevious 
 } from "@/components/ui/pagination";
-import { fetchDiamonds } from "@/lib/diamond-api";
+import { fetchDiamonds, updateDiamond, deleteDiamond, markDiamondAsSold } from "@/lib/diamond-api";
 
 export default function InventoryPage() {
   const { toast } = useToast();
@@ -33,16 +33,18 @@ export default function InventoryPage() {
     setError(null);
     
     try {
+      console.log("Fetching inventory data from backend...");
       const response = await fetchDiamonds();
       
       if (response.error) {
         setError(response.error);
         toast({
           variant: "destructive",
-          title: "Error",
+          title: "Backend Connection Error",
           description: response.error,
         });
       } else if (response.data) {
+        console.log("Successfully loaded diamonds:", response.data.length);
         setDiamonds(response.data);
         setFilteredDiamonds(response.data);
         
@@ -52,7 +54,7 @@ export default function InventoryPage() {
         
         toast({
           title: "Inventory loaded",
-          description: `Successfully loaded ${response.data.length} diamonds.`,
+          description: `Successfully loaded ${response.data.length} diamonds from backend.`,
         });
       }
     } catch (error) {
@@ -97,37 +99,103 @@ export default function InventoryPage() {
     setCurrentPage(1); // Reset to first page when filters change
   }, [searchQuery, filters, diamonds]);
   
-  const handleEdit = (id: string, data: Partial<Diamond>) => {
-    setDiamonds((prev) =>
-      prev.map((diamond) => (diamond.id === id ? { ...diamond, ...data } : diamond))
-    );
-    
-    toast({
-      title: "Diamond updated",
-      description: `Stock #${data.stock_number || ""} has been updated.`,
-    });
+  const handleEdit = async (id: string, data: Partial<Diamond>) => {
+    try {
+      console.log("Editing diamond:", id, data);
+      const response = await updateDiamond(id, data);
+      
+      if (response.error) {
+        toast({
+          variant: "destructive",
+          title: "Update Failed",
+          description: response.error,
+        });
+        return;
+      }
+      
+      // Update local state
+      setDiamonds((prev) =>
+        prev.map((diamond) => (diamond.id === id ? { ...diamond, ...data } : diamond))
+      );
+      
+      toast({
+        title: "Diamond updated",
+        description: `Stock #${data.stock_number || ""} has been updated successfully.`,
+      });
+    } catch (error) {
+      console.error("Error updating diamond:", error);
+      toast({
+        variant: "destructive",
+        title: "Update Failed",
+        description: "Failed to update diamond. Please try again.",
+      });
+    }
   };
   
-  const handleDelete = (id: string) => {
-    setDiamonds((prev) => prev.filter((diamond) => diamond.id !== id));
-    
-    toast({
-      title: "Diamond deleted",
-      description: "The diamond has been removed from your inventory.",
-    });
+  const handleDelete = async (id: string) => {
+    try {
+      console.log("Deleting diamond:", id);
+      const response = await deleteDiamond(id);
+      
+      if (response.error) {
+        toast({
+          variant: "destructive",
+          title: "Delete Failed",
+          description: response.error,
+        });
+        return;
+      }
+      
+      // Update local state
+      setDiamonds((prev) => prev.filter((diamond) => diamond.id !== id));
+      
+      toast({
+        title: "Diamond deleted",
+        description: "The diamond has been successfully removed from your inventory.",
+      });
+    } catch (error) {
+      console.error("Error deleting diamond:", error);
+      toast({
+        variant: "destructive",
+        title: "Delete Failed",
+        description: "Failed to delete diamond. Please try again.",
+      });
+    }
   };
   
-  const handleMarkAsSold = (id: string) => {
-    setDiamonds((prev) =>
-      prev.map((diamond) => 
-        diamond.id === id ? { ...diamond, status: "Sold" } : diamond
-      )
-    );
-    
-    toast({
-      title: "Status updated",
-      description: "The diamond has been marked as sold.",
-    });
+  const handleMarkAsSold = async (id: string) => {
+    try {
+      console.log("Marking diamond as sold:", id);
+      const response = await markDiamondAsSold(id);
+      
+      if (response.error) {
+        toast({
+          variant: "destructive",
+          title: "Update Failed",
+          description: response.error,
+        });
+        return;
+      }
+      
+      // Update local state
+      setDiamonds((prev) =>
+        prev.map((diamond) => 
+          diamond.id === id ? { ...diamond, status: "Sold" } : diamond
+        )
+      );
+      
+      toast({
+        title: "Status updated",
+        description: "The diamond has been marked as sold successfully.",
+      });
+    } catch (error) {
+      console.error("Error marking diamond as sold:", error);
+      toast({
+        variant: "destructive",
+        title: "Update Failed",
+        description: "Failed to mark diamond as sold. Please try again.",
+      });
+    }
   };
   
   const handleFilterChange = (newFilters: Record<string, string>) => {
@@ -171,9 +239,9 @@ export default function InventoryPage() {
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold">Inventory</h1>
+            <h1 className="text-3xl font-bold">Diamond Inventory</h1>
             <p className="text-muted-foreground">
-              Manage your diamond inventory ({filteredDiamonds.length} diamonds)
+              Manage your diamond inventory ({filteredDiamonds.length} diamonds loaded from backend)
             </p>
           </div>
           
@@ -210,10 +278,10 @@ export default function InventoryPage() {
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <p className="text-red-800 text-sm">
-              <strong>Connection Error:</strong> {error}
+              <strong>Backend Connection Error:</strong> {error}
             </p>
             <p className="text-red-600 text-xs mt-1">
-              Make sure your FastAPI backend is running and accessible.
+              Make sure your FastAPI backend at https://api.mazalbot.com is running and accessible.
             </p>
           </div>
         )}
