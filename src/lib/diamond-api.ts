@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Diamond } from "@/types/diamond";
 
 const FASTAPI_BASE_URL = "https://api.mazalbot.com/api/v1";
+const BACKEND_ACCESS_TOKEN = "ifj9ov1rh20fslfp"; // Static token for backend authentication
 
 interface FastApiResponse<T> {
   data?: T;
@@ -10,15 +11,10 @@ interface FastApiResponse<T> {
 }
 
 async function getAuthHeaders(): Promise<HeadersInit> {
-  const { data: { session } } = await supabase.auth.getSession();
-  
   const headers: HeadersInit = {
     "Content-Type": "application/json",
+    "Authorization": `Bearer ${BACKEND_ACCESS_TOKEN}`,
   };
-  
-  if (session?.access_token) {
-    headers["Authorization"] = `Bearer ${session.access_token}`;
-  }
   
   return headers;
 }
