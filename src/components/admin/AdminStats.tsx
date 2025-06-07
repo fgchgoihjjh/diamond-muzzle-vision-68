@@ -1,73 +1,31 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, MessageSquare, DollarSign, Activity } from "lucide-react";
+import { Users, DollarSign, MessageCircle, TrendingUp } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
-interface Client {
+interface User {
   id: string;
-  first_name: string;
-  last_name: string;
-  phone?: string;
-  telegram_id?: number;
-  email?: string;
   status: string;
+  is_premium?: boolean;
   created_at: string;
-  updated_at: string;
-  last_active?: string;
 }
 
 interface ApiUsage {
-  id: string;
-  client_id?: string;
-  telegram_id?: number;
-  api_type: string;
-  tokens_used: number;
   cost: number;
+  tokens_used: number;
   created_at: string;
 }
 
 interface AdminStatsProps {
-  clients: Client[];
+  users: User[];
   apiUsage: ApiUsage[];
   loading: boolean;
 }
 
-export function AdminStats({ clients, apiUsage, loading }: AdminStatsProps) {
-  const totalClients = clients.length;
-  const activeClients = clients.filter(client => client.status === 'active').length;
-  const totalApiCalls = apiUsage.length;
-  const totalCost = apiUsage.reduce((sum, usage) => sum + usage.cost, 0);
-
-  const stats = [
-    {
-      title: "Total Clients",
-      value: totalClients,
-      icon: Users,
-      description: `${activeClients} active`,
-    },
-    {
-      title: "API Calls",
-      value: totalApiCalls,
-      icon: MessageSquare,
-      description: "Total requests",
-    },
-    {
-      title: "API Cost",
-      value: `$${totalCost.toFixed(2)}`,
-      icon: DollarSign,
-      description: "Total spending",
-    },
-    {
-      title: "Active Sessions",
-      value: activeClients,
-      icon: Activity,
-      description: "Current users",
-    },
-  ];
-
+export function AdminStats({ users, apiUsage, loading }: AdminStatsProps) {
   if (loading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {[1, 2, 3, 4].map((i) => (
           <Card key={i}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -75,7 +33,7 @@ export function AdminStats({ clients, apiUsage, loading }: AdminStatsProps) {
               <Skeleton className="h-4 w-4" />
             </CardHeader>
             <CardContent>
-              <Skeleton className="h-8 w-16 mb-2" />
+              <Skeleton className="h-8 w-16 mb-1" />
               <Skeleton className="h-3 w-24" />
             </CardContent>
           </Card>
@@ -84,8 +42,49 @@ export function AdminStats({ clients, apiUsage, loading }: AdminStatsProps) {
     );
   }
 
+  const totalUsers = users.length;
+  const activeUsers = users.filter(user => user.status === 'active').length;
+  const premiumUsers = users.filter(user => user.is_premium).length;
+  const recentUsers = users.filter(user => {
+    const userDate = new Date(user.created_at);
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    return userDate > thirtyDaysAgo;
+  }).length;
+
+  const totalCost = apiUsage.reduce((sum, usage) => sum + (usage.cost || 0), 0);
+  const totalTokens = apiUsage.reduce((sum, usage) => sum + (usage.tokens_used || 0), 0);
+  const totalApiCalls = apiUsage.length;
+
+  const stats = [
+    {
+      title: "Total Users",
+      value: totalUsers.toLocaleString(),
+      icon: Users,
+      description: `${activeUsers} active users`,
+    },
+    {
+      title: "Premium Users",
+      value: premiumUsers.toLocaleString(),
+      icon: TrendingUp,
+      description: `${((premiumUsers / totalUsers) * 100).toFixed(1)}% conversion rate`,
+    },
+    {
+      title: "API Usage Cost",
+      value: `$${totalCost.toFixed(2)}`,
+      icon: DollarSign,
+      description: `${totalTokens.toLocaleString()} tokens used`,
+    },
+    {
+      title: "API Calls",
+      value: totalApiCalls.toLocaleString(),
+      icon: MessageCircle,
+      description: `Recent activity`,
+    },
+  ];
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       {stats.map((stat) => (
         <Card key={stat.title}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

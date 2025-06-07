@@ -24,37 +24,37 @@ import { useForm } from "react-hook-form";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-interface Client {
+interface User {
   id: string;
   first_name: string;
-  last_name: string;
-  phone?: string;
+  last_name?: string;
+  phone_number?: string;
   telegram_id?: number;
-  email?: string;
   status: string;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
   last_active?: string;
+  is_premium?: boolean;
+  subscription_plan?: string;
 }
 
 interface UserSpending {
-  client_id: string;
+  user_id: string;
   total_cost: number;
   total_tokens: number;
   api_calls: number;
 }
 
 interface UserManagementProps {
-  clients: Client[];
+  users: User[];
   onRefresh: () => void;
   loading: boolean;
 }
 
 interface EditUserFormData {
   first_name: string;
-  last_name: string;
-  phone?: string;
-  email?: string;
+  last_name?: string;
+  phone_number?: string;
   status: string;
 }
 
@@ -62,10 +62,10 @@ interface TelegramMessageFormData {
   message: string;
 }
 
-export function UserManagement({ clients, onRefresh, loading }: UserManagementProps) {
+export function UserManagement({ users, onRefresh, loading }: UserManagementProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [userSpending, setUserSpending] = useState<Record<string, UserSpending>>({});
-  const [selectedUser, setSelectedUser] = useState<Client | null>(null);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isMessageDialogOpen, setIsMessageDialogOpen] = useState(false);
   const [isBlockDialogOpen, setIsBlockDialogOpen] = useState(false);
@@ -76,8 +76,7 @@ export function UserManagement({ clients, onRefresh, loading }: UserManagementPr
     defaultValues: {
       first_name: "",
       last_name: "",
-      phone: "",
-      email: "",
+      phone_number: "",
       status: "active",
     },
   });
@@ -88,39 +87,43 @@ export function UserManagement({ clients, onRefresh, loading }: UserManagementPr
     },
   });
 
-  const filteredClients = clients.filter(client =>
-    `${client.first_name} ${client.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.phone?.includes(searchTerm) ||
-    client.telegram_id?.toString().includes(searchTerm)
+  const filteredUsers = users.filter(user =>
+    `${user.first_name} ${user.last_name || ''}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.phone_number?.includes(searchTerm) ||
+    user.telegram_id?.toString().includes(searchTerm)
   );
 
   useEffect(() => {
     fetchUserSpending();
-  }, [clients]);
+  }, [users]);
 
   const fetchUserSpending = async () => {
     try {
+      // Try to fetch from api_usage using telegram_id as fallback
       const { data, error } = await supabase
         .from('api_usage')
-        .select('client_id, cost, tokens_used')
-        .not('client_id', 'is', null);
+        .select('telegram_id, cost, tokens_used');
 
       if (error) throw error;
 
       const spendingMap: Record<string, UserSpending> = {};
+      
+      // Group by telegram_id and match with users
       data?.forEach((usage) => {
-        if (!spendingMap[usage.client_id]) {
-          spendingMap[usage.client_id] = {
-            client_id: usage.client_id,
-            total_cost: 0,
-            total_tokens: 0,
-            api_calls: 0,
-          };
+        const user = users.find(u => u.telegram_id === usage.telegram_id);
+        if (user) {
+          if (!spendingMap[user.id]) {
+            spendingMap[user.id] = {
+              user_id: user.id,
+              total_cost: 0,
+              total_tokens: 0,
+              api_calls: 0,
+            };
+          }
+          spendingMap[user.id].total_cost += usage.cost || 0;
+          spendingMap[user.id].total_tokens += usage.tokens_used || 0;
+          spendingMap[user.id].api_calls += 1;
         }
-        spendingMap[usage.client_id].total_cost += usage.cost || 0;
-        spendingMap[usage.client_id].total_tokens += usage.tokens_used || 0;
-        spendingMap[usage.client_id].api_calls += 1;
       });
 
       setUserSpending(spendingMap);
@@ -129,25 +132,24 @@ export function UserManagement({ clients, onRefresh, loading }: UserManagementPr
     }
   };
 
-  const handleEditUser = (user: Client) => {
+  const handleEditUser = (user: User) => {
     setSelectedUser(user);
     editForm.reset({
       first_name: user.first_name,
-      last_name: user.last_name,
-      phone: user.phone || "",
-      email: user.email || "",
+      last_name: user.last_name || "",
+      phone_number: user.phone_number || "",
       status: user.status,
     });
     setIsEditDialogOpen(true);
   };
 
-  const handleSendMessage = (user: Client) => {
+  const handleSendMessage = (user: User) => {
     setSelectedUser(user);
     messageForm.reset({ message: "" });
     setIsMessageDialogOpen(true);
   };
 
-  const handleBlockUser = (user: Client) => {
+  const handleBlockUser = (user: User) => {
     setSelectedUser(user);
     setBlockReason("");
     setIsBlockDialogOpen(true);
@@ -158,7 +160,7 @@ export function UserManagement({ clients, onRefresh, loading }: UserManagementPr
 
     try {
       const { error } = await supabase
-        .from('clients')
+        .from('user_profiles')
         .update(data)
         .eq('id', selectedUser.id);
 
@@ -219,22 +221,24 @@ export function UserManagement({ clients, onRefresh, loading }: UserManagementPr
     try {
       // Update user status to blocked
       const { error: updateError } = await supabase
-        .from('clients')
+        .from('user_profiles')
         .update({ status: 'blocked' })
         .eq('id', selectedUser.id);
 
       if (updateError) throw updateError;
 
       // Log the blocking action
-      const { error: logError } = await supabase
-        .from('blocked_users')
-        .insert([{
-          telegram_id: selectedUser.telegram_id,
-          blocked_by_telegram_id: 0, // Replace with actual admin telegram_id
-          reason: blockReason,
-        }]);
+      if (selectedUser.telegram_id) {
+        const { error: logError } = await supabase
+          .from('blocked_users')
+          .insert([{
+            telegram_id: selectedUser.telegram_id,
+            blocked_by_telegram_id: 0, // Replace with actual admin telegram_id
+            reason: blockReason,
+          }]);
 
-      if (logError) throw logError;
+        if (logError) console.error('Error logging block action:', logError);
+      }
 
       toast({
         title: "Success",
@@ -253,10 +257,10 @@ export function UserManagement({ clients, onRefresh, loading }: UserManagementPr
     }
   };
 
-  const unblockUser = async (user: Client) => {
+  const unblockUser = async (user: User) => {
     try {
       const { error } = await supabase
-        .from('clients')
+        .from('user_profiles')
         .update({ status: 'active' })
         .eq('id', user.id);
 
@@ -327,34 +331,37 @@ export function UserManagement({ clients, onRefresh, loading }: UserManagementPr
                     <TableHead>Contact</TableHead>
                     <TableHead>Telegram ID</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Plan</TableHead>
                     <TableHead>Spending</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredClients.map((client) => {
-                    const spending = userSpending[client.id];
+                  {filteredUsers.map((user) => {
+                    const spending = userSpending[user.id];
                     return (
-                      <TableRow key={client.id}>
+                      <TableRow key={user.id}>
                         <TableCell className="font-medium">
-                          {client.first_name} {client.last_name}
+                          {user.first_name} {user.last_name}
                         </TableCell>
                         <TableCell>
                           <div className="space-y-1">
-                            {client.email && (
-                              <div className="text-sm">{client.email}</div>
-                            )}
-                            {client.phone && (
-                              <div className="text-sm">{client.phone}</div>
+                            {user.phone_number && (
+                              <div className="text-sm">{user.phone_number}</div>
                             )}
                           </div>
                         </TableCell>
                         <TableCell>
-                          {client.telegram_id || 'N/A'}
+                          {user.telegram_id || 'N/A'}
                         </TableCell>
                         <TableCell>
-                          <Badge variant={client.status === 'active' ? 'default' : 'destructive'}>
-                            {client.status}
+                          <Badge variant={user.status === 'active' ? 'default' : 'destructive'}>
+                            {user.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={user.is_premium ? 'default' : 'outline'}>
+                            {user.subscription_plan || 'free'}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -374,24 +381,24 @@ export function UserManagement({ clients, onRefresh, loading }: UserManagementPr
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => handleEditUser(client)}
+                              onClick={() => handleEditUser(user)}
                             >
                               <Edit className="h-3 w-3" />
                             </Button>
-                            {client.telegram_id && (
+                            {user.telegram_id && (
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => handleSendMessage(client)}
+                                onClick={() => handleSendMessage(user)}
                               >
                                 <MessageCircle className="h-3 w-3" />
                               </Button>
                             )}
-                            {client.status === 'active' ? (
+                            {user.status === 'active' ? (
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => handleBlockUser(client)}
+                                onClick={() => handleBlockUser(user)}
                               >
                                 <Ban className="h-3 w-3" />
                               </Button>
@@ -399,7 +406,7 @@ export function UserManagement({ clients, onRefresh, loading }: UserManagementPr
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => unblockUser(client)}
+                                onClick={() => unblockUser(user)}
                               >
                                 <CheckCircle className="h-3 w-3" />
                               </Button>
@@ -409,6 +416,13 @@ export function UserManagement({ clients, onRefresh, loading }: UserManagementPr
                       </TableRow>
                     );
                   })}
+                  {filteredUsers.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center text-muted-foreground">
+                        No users found
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </div>

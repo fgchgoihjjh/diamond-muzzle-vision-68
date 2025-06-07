@@ -14,83 +14,82 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 
-interface Client {
+interface User {
   id: string;
-  first_name: string;
-  last_name: string;
-  phone?: string;
-  telegram_id?: number;
   email?: string;
+  first_name: string;
+  last_name?: string;
+  phone_number?: string;
+  telegram_id?: number;
   status: string;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
   last_active?: string;
+  is_premium?: boolean;
+  subscription_plan?: string;
 }
 
 interface ClientsListProps {
-  clients: Client[];
+  users: User[];
   onRefresh: () => void;
   loading: boolean;
 }
 
-interface ClientFormData {
+interface UserFormData {
   first_name: string;
-  last_name: string;
-  phone?: string;
+  last_name?: string;
+  phone_number?: string;
   telegram_id?: string;
-  email?: string;
   status: string;
 }
 
-export function ClientsList({ clients, onRefresh, loading }: ClientsListProps) {
+export function ClientsList({ users, onRefresh, loading }: ClientsListProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { toast } = useToast();
 
-  const form = useForm<ClientFormData>({
+  const form = useForm<UserFormData>({
     defaultValues: {
       first_name: "",
       last_name: "",
-      phone: "",
+      phone_number: "",
       telegram_id: "",
-      email: "",
       status: "active",
     },
   });
 
-  const filteredClients = clients.filter(client =>
-    `${client.first_name} ${client.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.phone?.includes(searchTerm) ||
-    client.telegram_id?.toString().includes(searchTerm)
+  const filteredUsers = users.filter(user =>
+    `${user.first_name} ${user.last_name || ''}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.phone_number?.includes(searchTerm) ||
+    user.telegram_id?.toString().includes(searchTerm)
   );
 
-  const onSubmit = async (data: ClientFormData) => {
+  const onSubmit = async (data: UserFormData) => {
     try {
-      const clientData = {
+      const userData = {
         ...data,
         telegram_id: data.telegram_id ? parseInt(data.telegram_id) : null,
       };
 
       const { error } = await supabase
-        .from('clients')
-        .insert([clientData]);
+        .from('user_profiles')
+        .insert([userData]);
 
       if (error) throw error;
 
       toast({
         title: "Success",
-        description: "Client added successfully",
+        description: "User added successfully",
       });
 
       form.reset();
       setIsDialogOpen(false);
       onRefresh();
     } catch (error) {
-      console.error('Error adding client:', error);
+      console.error('Error adding user:', error);
       toast({
         title: "Error",
-        description: "Failed to add client",
+        description: "Failed to add user",
         variant: "destructive",
       });
     }
@@ -100,7 +99,7 @@ export function ClientsList({ clients, onRefresh, loading }: ClientsListProps) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Clients Management</CardTitle>
+          <CardTitle>Users Management</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -120,17 +119,17 @@ export function ClientsList({ clients, onRefresh, loading }: ClientsListProps) {
     <Card>
       <CardHeader>
         <div className="flex justify-between items-center">
-          <CardTitle>Clients Management</CardTitle>
+          <CardTitle>Users Management</CardTitle>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="h-4 w-4 mr-2" />
-                Add Client
+                Add User
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Add New Client</DialogTitle>
+                <DialogTitle>Add New User</DialogTitle>
               </DialogHeader>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -155,7 +154,7 @@ export function ClientsList({ clients, onRefresh, loading }: ClientsListProps) {
                         <FormItem>
                           <FormLabel>Last Name</FormLabel>
                           <FormControl>
-                            <Input {...field} required />
+                            <Input {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -164,20 +163,7 @@ export function ClientsList({ clients, onRefresh, loading }: ClientsListProps) {
                   </div>
                   <FormField
                     control={form.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <Input {...field} type="email" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="phone"
+                    name="phone_number"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Phone</FormLabel>
@@ -205,7 +191,7 @@ export function ClientsList({ clients, onRefresh, loading }: ClientsListProps) {
                     <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                       Cancel
                     </Button>
-                    <Button type="submit">Add Client</Button>
+                    <Button type="submit">Add User</Button>
                   </div>
                 </form>
               </Form>
@@ -218,7 +204,7 @@ export function ClientsList({ clients, onRefresh, loading }: ClientsListProps) {
           <div className="relative">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search clients..."
+              placeholder="Search users..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-9"
@@ -233,57 +219,57 @@ export function ClientsList({ clients, onRefresh, loading }: ClientsListProps) {
                   <TableHead>Contact</TableHead>
                   <TableHead>Telegram ID</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Plan</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead>Last Active</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredClients.map((client) => (
-                  <TableRow key={client.id}>
+                {filteredUsers.map((user) => (
+                  <TableRow key={user.id}>
                     <TableCell className="font-medium">
-                      {client.first_name} {client.last_name}
+                      {user.first_name} {user.last_name}
                     </TableCell>
                     <TableCell>
                       <div className="space-y-1">
-                        {client.email && (
-                          <div className="flex items-center text-sm">
-                            <Mail className="h-3 w-3 mr-1" />
-                            {client.email}
-                          </div>
-                        )}
-                        {client.phone && (
+                        {user.phone_number && (
                           <div className="flex items-center text-sm">
                             <Phone className="h-3 w-3 mr-1" />
-                            {client.phone}
+                            {user.phone_number}
                           </div>
                         )}
                       </div>
                     </TableCell>
                     <TableCell>
-                      {client.telegram_id && (
+                      {user.telegram_id && (
                         <div className="flex items-center">
                           <MessageCircle className="h-3 w-3 mr-1" />
-                          {client.telegram_id}
+                          {user.telegram_id}
                         </div>
                       )}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={client.status === 'active' ? 'default' : 'secondary'}>
-                        {client.status}
+                      <Badge variant={user.status === 'active' ? 'default' : 'secondary'}>
+                        {user.status}
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {new Date(client.created_at).toLocaleDateString()}
+                      <Badge variant={user.is_premium ? 'default' : 'outline'}>
+                        {user.subscription_plan || 'free'}
+                      </Badge>
                     </TableCell>
                     <TableCell>
-                      {client.last_active ? new Date(client.last_active).toLocaleDateString() : 'Never'}
+                      {new Date(user.created_at).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
+                      {user.last_active ? new Date(user.last_active).toLocaleDateString() : 'Never'}
                     </TableCell>
                   </TableRow>
                 ))}
-                {filteredClients.length === 0 && (
+                {filteredUsers.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground">
-                      No clients found
+                    <TableCell colSpan={7} className="text-center text-muted-foreground">
+                      No users found
                     </TableCell>
                   </TableRow>
                 )}

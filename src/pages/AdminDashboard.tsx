@@ -10,17 +10,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-interface Client {
+interface User {
   id: string;
-  first_name: string;
-  last_name: string;
-  phone?: string;
-  telegram_id?: number;
   email?: string;
+  first_name: string;
+  last_name?: string;
+  phone_number?: string;
+  telegram_id?: number;
   status: string;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
   last_active?: string;
+  is_premium?: boolean;
+  subscription_plan?: string;
 }
 
 interface ApiUsage {
@@ -34,25 +36,43 @@ interface ApiUsage {
 }
 
 export default function AdminDashboard() {
-  const [clients, setClients] = useState<Client[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [apiUsage, setApiUsage] = useState<ApiUsage[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  const fetchClients = async () => {
+  const fetchUsers = async () => {
     try {
+      // Fetch from user_profiles table which has the most complete user data
       const { data, error } = await supabase
-        .from('clients')
+        .from('user_profiles')
         .select('*')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setClients(data || []);
+
+      // Transform the data to match our User interface
+      const transformedUsers: User[] = (data || []).map(profile => ({
+        id: profile.id,
+        email: '', // We'll need to join with users table if email is needed
+        first_name: profile.first_name,
+        last_name: profile.last_name,
+        phone_number: profile.phone_number,
+        telegram_id: profile.telegram_id,
+        status: profile.status || 'active',
+        created_at: profile.created_at,
+        updated_at: profile.updated_at,
+        last_active: profile.last_login,
+        is_premium: profile.is_premium,
+        subscription_plan: profile.subscription_plan
+      }));
+
+      setUsers(transformedUsers);
     } catch (error) {
-      console.error('Error fetching clients:', error);
+      console.error('Error fetching users:', error);
       toast({
         title: "Error",
-        description: "Failed to fetch clients data",
+        description: "Failed to fetch users data",
         variant: "destructive",
       });
     }
@@ -81,7 +101,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      await Promise.all([fetchClients(), fetchApiUsage()]);
+      await Promise.all([fetchUsers(), fetchApiUsage()]);
       setLoading(false);
     };
 
@@ -95,12 +115,12 @@ export default function AdminDashboard() {
           <div>
             <h1 className="text-3xl font-bold">Admin Dashboard</h1>
             <p className="text-muted-foreground">
-              Monitor clients, API usage, and manage diamond consultations
+              Monitor users, API usage, and manage diamond consultations
             </p>
           </div>
         </div>
 
-        <AdminStats clients={clients} apiUsage={apiUsage} loading={loading} />
+        <AdminStats users={users} apiUsage={apiUsage} loading={loading} />
 
         <Tabs defaultValue="overview" className="space-y-4">
           <TabsList>
@@ -111,15 +131,15 @@ export default function AdminDashboard() {
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4">
-            <ClientsList clients={clients} onRefresh={fetchClients} loading={loading} />
+            <ClientsList users={users} onRefresh={fetchUsers} loading={loading} />
           </TabsContent>
 
           <TabsContent value="users" className="space-y-4">
-            <UserManagement clients={clients} onRefresh={fetchClients} loading={loading} />
+            <UserManagement users={users} onRefresh={fetchUsers} loading={loading} />
           </TabsContent>
 
           <TabsContent value="usage" className="space-y-4">
-            <ApiUsageChart apiUsage={apiUsage} clients={clients} loading={loading} />
+            <ApiUsageChart apiUsage={apiUsage} users={users} loading={loading} />
           </TabsContent>
 
           <TabsContent value="chat" className="space-y-4">
