@@ -5,6 +5,7 @@ import { AdminStats } from "@/components/admin/AdminStats";
 import { ClientsList } from "@/components/admin/ClientsList";
 import { ApiUsageChart } from "@/components/admin/ApiUsageChart";
 import { AiChat } from "@/components/admin/AiChat";
+import { UserManagement } from "@/components/admin/UserManagement";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -101,15 +102,20 @@ export default function AdminDashboard() {
 
         <AdminStats clients={clients} apiUsage={apiUsage} loading={loading} />
 
-        <Tabs defaultValue="clients" className="space-y-4">
+        <Tabs defaultValue="overview" className="space-y-4">
           <TabsList>
-            <TabsTrigger value="clients">Clients Management</TabsTrigger>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="users">User Management</TabsTrigger>
             <TabsTrigger value="usage">API Usage</TabsTrigger>
             <TabsTrigger value="chat">AI Diamond Chat</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="clients" className="space-y-4">
+          <TabsContent value="overview" className="space-y-4">
             <ClientsList clients={clients} onRefresh={fetchClients} loading={loading} />
+          </TabsContent>
+
+          <TabsContent value="users" className="space-y-4">
+            <UserManagement clients={clients} onRefresh={fetchClients} loading={loading} />
           </TabsContent>
 
           <TabsContent value="usage" className="space-y-4">

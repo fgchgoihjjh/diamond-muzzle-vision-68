@@ -369,6 +369,7 @@ export type Database = {
         Row: {
           certificate_comment: string | null
           certificate_number: number | null
+          certificate_url: string | null
           clarity: string
           color: string
           created_at: string
@@ -399,6 +400,7 @@ export type Database = {
         Insert: {
           certificate_comment?: string | null
           certificate_number?: number | null
+          certificate_url?: string | null
           clarity: string
           color: string
           created_at?: string
@@ -429,6 +431,7 @@ export type Database = {
         Update: {
           certificate_comment?: string | null
           certificate_number?: number | null
+          certificate_url?: string | null
           clarity?: string
           color?: string
           created_at?: string
@@ -831,6 +834,10 @@ export type Database = {
     }
     Functions: {
       delete_diamond: {
+        Args: { p_stock_number: string; p_user_id: number }
+        Returns: boolean
+      }
+      delete_diamond_by_stock: {
         Args: { p_stock_number: string; p_user_id: number }
         Returns: boolean
       }

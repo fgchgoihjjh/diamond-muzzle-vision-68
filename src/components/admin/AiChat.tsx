@@ -68,7 +68,17 @@ export function AiChat() {
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      setMessages(data || []);
+      
+      // Type cast the data to ensure proper typing
+      const typedMessages: Message[] = (data || []).map(msg => ({
+        id: msg.id,
+        role: msg.role as 'user' | 'assistant' | 'system',
+        content: msg.content,
+        tokens_used: msg.tokens_used,
+        created_at: msg.created_at
+      }));
+      
+      setMessages(typedMessages);
     } catch (error) {
       console.error('Error fetching messages:', error);
     }
@@ -127,8 +137,15 @@ export function AiChat() {
 
       if (userMsgError) throw userMsgError;
 
-      // Add user message to local state
-      setMessages(prev => [...prev, userMsgData]);
+      // Add user message to local state with proper typing
+      const typedUserMessage: Message = {
+        id: userMsgData.id,
+        role: 'user',
+        content: userMsgData.content,
+        tokens_used: userMsgData.tokens_used,
+        created_at: userMsgData.created_at
+      };
+      setMessages(prev => [...prev, typedUserMessage]);
 
       // Call OpenAI API through edge function
       const { data: aiResponse, error: aiError } = await supabase.functions.invoke('diamond-chat', {
@@ -154,8 +171,15 @@ export function AiChat() {
 
       if (aiMsgError) throw aiMsgError;
 
-      // Add AI message to local state
-      setMessages(prev => [...prev, aiMsgData]);
+      // Add AI message to local state with proper typing
+      const typedAiMessage: Message = {
+        id: aiMsgData.id,
+        role: 'assistant',
+        content: aiMsgData.content,
+        tokens_used: aiMsgData.tokens_used,
+        created_at: aiMsgData.created_at
+      };
+      setMessages(prev => [...prev, typedAiMessage]);
 
       // Track API usage
       await supabase
