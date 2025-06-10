@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,7 +15,6 @@ import {
   Ban, 
   CheckCircle, 
   MessageCircle, 
-  DollarSign, 
   Search,
   Send,
   UserX
@@ -99,7 +98,6 @@ export function UserManagement({ users, onRefresh, loading }: UserManagementProp
 
   const fetchUserSpending = async () => {
     try {
-      // Try to fetch from api_usage using telegram_id as fallback
       const { data, error } = await supabase
         .from('api_usage')
         .select('telegram_id, cost, tokens_used');
@@ -108,7 +106,6 @@ export function UserManagement({ users, onRefresh, loading }: UserManagementProp
 
       const spendingMap: Record<string, UserSpending> = {};
       
-      // Group by telegram_id and match with users
       data?.forEach((usage) => {
         const user = users.find(u => u.telegram_id === usage.telegram_id);
         if (user) {
@@ -194,8 +191,6 @@ export function UserManagement({ users, onRefresh, loading }: UserManagementProp
     }
 
     try {
-      // Here you would integrate with your Telegram bot API
-      // For now, we'll just log the message and show success
       console.log(`Sending message to ${selectedUser.telegram_id}: ${data.message}`);
       
       toast({
@@ -219,7 +214,6 @@ export function UserManagement({ users, onRefresh, loading }: UserManagementProp
     if (!selectedUser) return;
 
     try {
-      // Update user status to blocked
       const { error: updateError } = await supabase
         .from('user_profiles')
         .update({ status: 'blocked' })
@@ -227,13 +221,12 @@ export function UserManagement({ users, onRefresh, loading }: UserManagementProp
 
       if (updateError) throw updateError;
 
-      // Log the blocking action
       if (selectedUser.telegram_id) {
         const { error: logError } = await supabase
           .from('blocked_users')
           .insert([{
             telegram_id: selectedUser.telegram_id,
-            blocked_by_telegram_id: 0, // Replace with actual admin telegram_id
+            blocked_by_telegram_id: 0,
             reason: blockReason,
           }]);
 
@@ -459,7 +452,7 @@ export function UserManagement({ users, onRefresh, loading }: UserManagementProp
                     <FormItem>
                       <FormLabel>Last Name</FormLabel>
                       <FormControl>
-                        <Input {...field} required />
+                        <Input {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -468,23 +461,10 @@ export function UserManagement({ users, onRefresh, loading }: UserManagementProp
               </div>
               <FormField
                 control={editForm.control}
-                name="email"
+                name="phone_number"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input {...field} type="email" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={editForm.control}
-                name="phone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Phone</FormLabel>
+                    <FormLabel>Phone Number</FormLabel>
                     <FormControl>
                       <Input {...field} />
                     </FormControl>

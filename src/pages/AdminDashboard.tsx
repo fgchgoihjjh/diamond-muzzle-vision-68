@@ -6,6 +6,7 @@ import { ClientsList } from "@/components/admin/ClientsList";
 import { ApiUsageChart } from "@/components/admin/ApiUsageChart";
 import { AiChat } from "@/components/admin/AiChat";
 import { UserManagement } from "@/components/admin/UserManagement";
+import { DiamondManagement } from "@/components/admin/DiamondManagement";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -43,7 +44,6 @@ export default function AdminDashboard() {
 
   const fetchUsers = async () => {
     try {
-      // Fetch from user_profiles table which has the most complete user data
       const { data, error } = await supabase
         .from('user_profiles')
         .select('*')
@@ -51,10 +51,9 @@ export default function AdminDashboard() {
 
       if (error) throw error;
 
-      // Transform the data to match our User interface
       const transformedUsers: User[] = (data || []).map(profile => ({
         id: profile.id,
-        email: '', // We'll need to join with users table if email is needed
+        email: '',
         first_name: profile.first_name,
         last_name: profile.last_name,
         phone_number: profile.phone_number,
@@ -115,7 +114,7 @@ export default function AdminDashboard() {
           <div>
             <h1 className="text-3xl font-bold">Admin Dashboard</h1>
             <p className="text-muted-foreground">
-              Monitor users, API usage, and manage diamond consultations
+              Monitor users, API usage, diamonds, and manage consultations
             </p>
           </div>
         </div>
@@ -126,6 +125,7 @@ export default function AdminDashboard() {
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="users">User Management</TabsTrigger>
+            <TabsTrigger value="diamonds">Diamond Inventory</TabsTrigger>
             <TabsTrigger value="usage">API Usage</TabsTrigger>
             <TabsTrigger value="chat">AI Diamond Chat</TabsTrigger>
           </TabsList>
@@ -136,6 +136,10 @@ export default function AdminDashboard() {
 
           <TabsContent value="users" className="space-y-4">
             <UserManagement users={users} onRefresh={fetchUsers} loading={loading} />
+          </TabsContent>
+
+          <TabsContent value="diamonds" className="space-y-4">
+            <DiamondManagement />
           </TabsContent>
 
           <TabsContent value="usage" className="space-y-4">

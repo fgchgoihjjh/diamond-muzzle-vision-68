@@ -3,17 +3,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 
-interface Client {
+interface User {
   id: string;
   first_name: string;
-  last_name: string;
-  phone?: string;
+  last_name?: string;
+  phone_number?: string;
   telegram_id?: number;
-  email?: string;
   status: string;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
   last_active?: string;
+  is_premium?: boolean;
+  subscription_plan?: string;
 }
 
 interface ApiUsage {
@@ -28,11 +29,11 @@ interface ApiUsage {
 
 interface ApiUsageChartProps {
   apiUsage: ApiUsage[];
-  clients: Client[];
+  users: User[];
   loading: boolean;
 }
 
-export function ApiUsageChart({ apiUsage, clients, loading }: ApiUsageChartProps) {
+export function ApiUsageChart({ apiUsage, users, loading }: ApiUsageChartProps) {
   // Group usage by day
   const usageByDay = apiUsage.reduce((acc, usage) => {
     const date = new Date(usage.created_at).toLocaleDateString();

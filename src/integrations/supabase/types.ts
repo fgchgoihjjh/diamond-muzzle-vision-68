@@ -375,6 +375,7 @@ export type Database = {
           created_at: string
           culet: string | null
           cut: string | null
+          deleted_at: string | null
           depth: number | null
           depth_percentage: number | null
           fluorescence: string | null
@@ -390,6 +391,7 @@ export type Database = {
           shape: string
           status: string | null
           stock_number: string
+          store_visible: boolean | null
           symmetry: string | null
           table_percentage: number | null
           updated_at: string
@@ -406,6 +408,7 @@ export type Database = {
           created_at?: string
           culet?: string | null
           cut?: string | null
+          deleted_at?: string | null
           depth?: number | null
           depth_percentage?: number | null
           fluorescence?: string | null
@@ -421,6 +424,7 @@ export type Database = {
           shape: string
           status?: string | null
           stock_number: string
+          store_visible?: boolean | null
           symmetry?: string | null
           table_percentage?: number | null
           updated_at?: string
@@ -437,6 +441,7 @@ export type Database = {
           created_at?: string
           culet?: string | null
           cut?: string | null
+          deleted_at?: string | null
           depth?: number | null
           depth_percentage?: number | null
           fluorescence?: string | null
@@ -452,6 +457,7 @@ export type Database = {
           shape?: string
           status?: string | null
           stock_number?: string
+          store_visible?: boolean | null
           symmetry?: string | null
           table_percentage?: number | null
           updated_at?: string
