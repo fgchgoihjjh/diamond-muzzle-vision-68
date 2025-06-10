@@ -45,13 +45,13 @@ export async function fetchDiamonds(): Promise<FastApiResponse<Diamond[]>> {
     // Transform FastAPI response to match our Diamond interface
     const diamonds: Diamond[] = data.map((stone: any, index: number) => ({
       id: stone.id || `stone-${index}`,
-      stock_number: stone.stock_number || stone.stockNumber || `STOCK-${index}`,
+      stock_number: stone.stock_number || stone.stockNumber || stone.stock || `STOCK-${index}`,
       shape: stone.shape || "Round",
-      carat: parseFloat(stone.carat) || 0,
+      carat: parseFloat(stone.carat || stone.weight) || 0,
       color: stone.color || "D",
       clarity: stone.clarity || "FL",
       cut: stone.cut || "Excellent",
-      price: parseFloat(stone.price) || 0,
+      price: parseFloat(stone.price || stone.price_per_carat) || 0,
       status: stone.status || "Available",
       created_at: stone.created_at || new Date().toISOString(),
       lab: stone.lab,
@@ -84,10 +84,23 @@ export async function updateDiamond(id: string, diamondData: Partial<Diamond>): 
     const headers = await getAuthHeaders();
     console.log("Updating diamond:", id, diamondData);
 
+    // Convert our diamond data to backend format
+    const backendData = {
+      stock: diamondData.stock_number,
+      shape: diamondData.shape,
+      weight: diamondData.carat,
+      color: diamondData.color,
+      clarity: diamondData.clarity,
+      cut: diamondData.cut,
+      price_per_carat: diamondData.price,
+      lab: diamondData.lab,
+      certificate_number: diamondData.certificate_number,
+    };
+
     const response = await fetch(`${FASTAPI_BASE_URL}/update_stone/${id}`, {
       method: "PUT",
       headers,
-      body: JSON.stringify(diamondData),
+      body: JSON.stringify(backendData),
     });
 
     console.log("Update response status:", response.status);
@@ -112,18 +125,51 @@ export async function updateDiamond(id: string, diamondData: Partial<Diamond>): 
 export async function deleteDiamond(id: string): Promise<FastApiResponse<void>> {
   try {
     const headers = await getAuthHeaders();
-    console.log("Deleting diamond:", id);
+    console.log("Deleting diamond with ID:", id);
 
-    const response = await fetch(`${FASTAPI_BASE_URL}/delete_stone/${id}`, {
+    // First, let's check if the diamond exists by fetching all diamonds
+    const allDiamonds = await fetchDiamonds();
+    const diamond = allDiamonds.data?.find(d => d.id.toString() === id.toString());
+    
+    if (!diamond) {
+      console.error("Diamond not found in current inventory");
+      return { error: "Diamond not found in current inventory" };
+    }
+
+    console.log("Found diamond to delete:", diamond);
+
+    // Try different endpoints and ID formats
+    let response: Response;
+    
+    // Try with the original ID first
+    response = await fetch(`${FASTAPI_BASE_URL}/delete_stone/${id}`, {
       method: "DELETE",
       headers,
     });
 
     console.log("Delete response status:", response.status);
 
+    // If that fails, try with stock number
+    if (!response.ok && diamond.stock_number) {
+      console.log("Retrying with stock number:", diamond.stock_number);
+      response = await fetch(`${FASTAPI_BASE_URL}/delete_stone/${diamond.stock_number}`, {
+        method: "DELETE",
+        headers,
+      });
+      console.log("Delete with stock number response status:", response.status);
+    }
+
     if (!response.ok) {
       const errorText = await response.text();
       console.error("Delete error response:", errorText);
+      
+      // Provide more helpful error message
+      if (response.status === 404) {
+        return { 
+          error: `Diamond not found on server. It may have already been deleted or the ID format is incorrect. Diamond ID: ${id}, Stock: ${diamond.stock_number}` 
+        };
+      }
+      
       throw new Error(`Delete failed: ${response.status} - ${errorText}`);
     }
 
