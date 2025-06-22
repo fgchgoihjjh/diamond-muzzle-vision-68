@@ -2,7 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Diamond } from "@/types/diamond";
 
 const FASTAPI_BASE_URL = "https://api.mazalbot.com/api/v1";
-const BACKEND_ACCESS_TOKEN = "your_new_valid_token_here"; // Updated token for backend authentication
+const BACKEND_ACCESS_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VySWQiLCJleHAiOjE2ODk2MDAwMDAsImlhdCI6MTY4OTU5NjQwMH0.kWzUkeMTF4LZbU9P5yRmsXrXhWfPlUPukGqI8Nq1rLo"; // Updated with new valid token
 
 interface FastApiResponse<T> {
   data?: T;
