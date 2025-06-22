@@ -467,6 +467,33 @@ export type Database = {
         }
         Relationships: []
       }
+      inventory_analytics_cache: {
+        Row: {
+          analytics_type: string
+          created_at: string | null
+          data: Json
+          expires_at: string
+          id: string
+          user_id: number
+        }
+        Insert: {
+          analytics_type: string
+          created_at?: string | null
+          data: Json
+          expires_at: string
+          id?: string
+          user_id: number
+        }
+        Update: {
+          analytics_type?: string
+          created_at?: string | null
+          data?: Json
+          expires_at?: string
+          id?: string
+          user_id?: number
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string
@@ -679,6 +706,54 @@ export type Database = {
           },
         ]
       }
+      user_logins: {
+        Row: {
+          created_at: string
+          first_name: string | null
+          id: string
+          init_data_hash: string | null
+          ip_address: string | null
+          is_premium: boolean | null
+          language_code: string | null
+          last_name: string | null
+          login_timestamp: string
+          photo_url: string | null
+          telegram_id: number
+          user_agent: string | null
+          username: string | null
+        }
+        Insert: {
+          created_at?: string
+          first_name?: string | null
+          id?: string
+          init_data_hash?: string | null
+          ip_address?: string | null
+          is_premium?: boolean | null
+          language_code?: string | null
+          last_name?: string | null
+          login_timestamp?: string
+          photo_url?: string | null
+          telegram_id: number
+          user_agent?: string | null
+          username?: string | null
+        }
+        Update: {
+          created_at?: string
+          first_name?: string | null
+          id?: string
+          init_data_hash?: string | null
+          ip_address?: string | null
+          is_premium?: boolean | null
+          language_code?: string | null
+          last_name?: string | null
+          login_timestamp?: string
+          photo_url?: string | null
+          telegram_id?: number
+          user_agent?: string | null
+          username?: string | null
+        }
+        Relationships: []
+      }
       user_management_log: {
         Row: {
           action_type: string
@@ -836,9 +911,42 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      recent_user_logins: {
+        Row: {
+          first_name: string | null
+          last_name: string | null
+          session_end: string | null
+          session_start: string | null
+          telegram_id: number | null
+          user_agent: string | null
+          username: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      add_diamond_for_user: {
+        Args: {
+          p_user_id: number
+          p_stock_number: string
+          p_shape: string
+          p_weight: number
+          p_color: string
+          p_clarity: string
+          p_cut: string
+          p_polish: string
+          p_symmetry: string
+          p_price_per_carat: number
+          p_status: string
+          p_picture: string
+          p_certificate_url: string
+        }
+        Returns: boolean
+      }
+      clean_expired_cache: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       delete_diamond: {
         Args: { p_stock_number: string; p_user_id: number }
         Returns: boolean
@@ -857,6 +965,14 @@ export type Database = {
           users_with_phone: number
           recent_signups: number
         }[]
+      }
+      is_admin_user: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      update_diamond_for_user: {
+        Args: { p_user_id: number; p_stock_number: string; p_update_data: Json }
+        Returns: boolean
       }
     }
     Enums: {

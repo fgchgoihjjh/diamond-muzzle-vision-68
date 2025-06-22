@@ -1,9 +1,8 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Diamond } from "@/types/diamond";
 
 const FASTAPI_BASE_URL = "https://api.mazalbot.com/api/v1";
-const BACKEND_ACCESS_TOKEN = "ifj9ov1rh20fslfp"; // Static token for backend authentication
+const BACKEND_ACCESS_TOKEN = "your_new_valid_token_here"; // Updated token for backend authentication
 
 interface FastApiResponse<T> {
   data?: T;
