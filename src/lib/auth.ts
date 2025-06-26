@@ -28,7 +28,7 @@ export interface AuthTokens {
 
 const FASTAPI_BASE_URL = "https://api.mazalbot.com/api/v1";
 const AUTH_STORAGE_KEY = "mazalbot_auth_tokens";
-const BACKEND_ACCESS_TOKEN = "your-backend-access-token"; // This should match your FastAPI BACKEND_ACCESS_TOKEN
+const BACKEND_ACCESS_TOKEN = "ifj9ov1rh20fslfp"; // Updated with your provided token
 
 export class AuthService {
   private static instance: AuthService;
@@ -98,7 +98,7 @@ export class AuthService {
     
     console.log("Using user ID:", userId);
     
-    // Create tokens with BACKEND_ACCESS_TOKEN
+    // Create tokens with the correct BACKEND_ACCESS_TOKEN
     const tokens: AuthTokens = {
       access_token: BACKEND_ACCESS_TOKEN,
       user_id: userId

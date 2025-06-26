@@ -1,9 +1,8 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Diamond } from "@/types/diamond";
 import { authService } from "./auth";
 
-const FASTAPI_BASE_URL = "https://api.mazalbot.com/api/v1";
+const FASTAPI_BASE_URL = "https://api.mazalbot.com/api/v1"; // Updated to use your backend URL
 
 interface FastApiResponse<T> {
   data?: T;
