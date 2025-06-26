@@ -22,13 +22,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setIsLoading(true);
       setError(null);
-      const newTokens = await authService.authenticate();
+      console.log('Starting authentication process...');
+      
+      const newTokens = await authService.verifyTelegramAuth();
       setTokens(newTokens);
-      console.log('Authentication successful');
+      console.log('Authentication successful for user:', newTokens.user_id);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Authentication failed';
       setError(errorMessage);
       console.error('Authentication failed:', errorMessage);
+      throw err; // Re-throw so caller can handle
     } finally {
       setIsLoading(false);
     }
@@ -40,20 +43,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setError(null);
   };
 
+  // Auto-refresh tokens when they're about to expire
   useEffect(() => {
-    // Initialize authentication on app start
+    if (tokens && authService.needsTokenRefresh()) {
+      console.log('Token needs refresh, re-authenticating...');
+      login().catch(console.error);
+    }
+  }, [tokens]);
+
+  useEffect(() => {
     const initAuth = async () => {
       try {
-        // Check if we have stored tokens
+        setIsLoading(true);
+        setError(null);
+        
+        // Try to get existing valid tokens first
         const existingTokens = authService.getCurrentTokens();
         if (existingTokens) {
+          console.log('Using existing valid tokens');
           setTokens(existingTokens);
-        } else {
-          // Attempt to authenticate
-          await login();
+          return;
         }
+
+        // No valid tokens, attempt authentication
+        console.log('No valid tokens found, attempting authentication...');
+        const newTokens = await authService.verifyTelegramAuth();
+        setTokens(newTokens);
+        
       } catch (err) {
-        console.log('Initial authentication failed, user needs to login');
+        const errorMessage = err instanceof Error ? err.message : 'Initial authentication failed';
+        console.error('Initial authentication failed:', errorMessage);
+        setError(errorMessage);
+        // Don't throw here - let user manually retry
       } finally {
         setIsLoading(false);
       }
