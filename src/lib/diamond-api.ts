@@ -1,26 +1,18 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Diamond } from "@/types/diamond";
+import { authService } from "./auth";
 
 const FASTAPI_BASE_URL = "https://api.mazalbot.com/api/v1";
-const BACKEND_ACCESS_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VySWQiLCJleHAiOjE2ODk2MDAwMDAsImlhdCI6MTY4OTU5NjQwMH0.kWzUkeMTF4LZbU9P5yRmsXrXhWfPlUPukGqI8Nq1rLo"; // Updated with new valid token
 
 interface FastApiResponse<T> {
   data?: T;
   error?: string;
 }
 
-async function getAuthHeaders(): Promise<HeadersInit> {
-  const headers: HeadersInit = {
-    "Content-Type": "application/json",
-    "Authorization": `Bearer ${BACKEND_ACCESS_TOKEN}`,
-  };
-  
-  return headers;
-}
-
 export async function fetchDiamonds(): Promise<FastApiResponse<Diamond[]>> {
   try {
-    const headers = await getAuthHeaders();
+    const headers = await authService.getAuthHeaders();
     console.log("Fetching diamonds from:", `${FASTAPI_BASE_URL}/get_all_stones`);
     console.log("Request headers:", headers);
     
@@ -80,7 +72,7 @@ export async function fetchDiamonds(): Promise<FastApiResponse<Diamond[]>> {
 
 export async function updateDiamond(id: string, diamondData: Partial<Diamond>): Promise<FastApiResponse<Diamond>> {
   try {
-    const headers = await getAuthHeaders();
+    const headers = await authService.getAuthHeaders();
     console.log("Updating diamond:", id, diamondData);
 
     // Convert our diamond data to backend format
@@ -123,7 +115,7 @@ export async function updateDiamond(id: string, diamondData: Partial<Diamond>): 
 
 export async function deleteDiamond(id: string): Promise<FastApiResponse<void>> {
   try {
-    const headers = await getAuthHeaders();
+    const headers = await authService.getAuthHeaders();
     console.log("Deleting diamond with ID:", id);
 
     // First, let's check if the diamond exists by fetching all diamonds
@@ -184,7 +176,7 @@ export async function deleteDiamond(id: string): Promise<FastApiResponse<void>> 
 
 export async function markDiamondAsSold(id: string): Promise<FastApiResponse<Diamond>> {
   try {
-    const headers = await getAuthHeaders();
+    const headers = await authService.getAuthHeaders();
     console.log("Marking diamond as sold:", id);
 
     const response = await fetch(`${FASTAPI_BASE_URL}/sold`, {
@@ -214,7 +206,7 @@ export async function markDiamondAsSold(id: string): Promise<FastApiResponse<Dia
 
 export async function uploadDiamondCSV(file: File): Promise<FastApiResponse<any>> {
   try {
-    const headers = await getAuthHeaders();
+    const headers = await authService.getAuthHeaders();
     delete headers["Content-Type"]; // Let browser set content type for FormData
     
     const formData = new FormData();

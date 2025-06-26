@@ -1,14 +1,17 @@
-
 import { useEffect, useState } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { InventoryChart } from "@/components/dashboard/InventoryChart";
 import { ConnectionStatus } from "@/components/ConnectionStatus";
-import { Diamond, Coins, Users, BadgeCheck, Weight, DollarSign } from "lucide-react";
+import { Diamond, Coins, Users, BadgeCheck, Weight, DollarSign, AlertCircle } from "lucide-react";
 import { fetchDiamonds } from "@/lib/diamond-api";
 import { Diamond as DiamondType, DashboardMetrics } from "@/types/diamond";
+import { useAuth } from "@/contexts/AuthContext";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 
 export default function Dashboard() {
+  const { isAuthenticated, isLoading: authLoading, login, error: authError, tokens } = useAuth();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<DashboardMetrics>({
     totalDiamonds: 0,
@@ -30,15 +33,22 @@ export default function Dashboard() {
   
   useEffect(() => {
     const fetchData = async () => {
+      if (!isAuthenticated) {
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       try {
-        console.log("Dashboard: Fetching real diamond data from FastAPI backend...");
-        // Fetch real diamond data from FastAPI backend
+        console.log("Dashboard: Fetching user-specific diamond data from FastAPI backend...");
+        console.log("Dashboard: Current user tokens:", tokens);
+        
+        // Fetch real diamond data from FastAPI backend (now user-filtered)
         const response = await fetchDiamonds();
         
         if (response.data) {
           const diamonds = response.data;
-          console.log("Dashboard: Successfully loaded", diamonds.length, "diamonds");
+          console.log("Dashboard: Successfully loaded", diamonds.length, "user-specific diamonds");
           
           // Calculate real statistics
           const totalDiamonds = diamonds.length;
@@ -79,27 +89,10 @@ export default function Dashboard() {
           ];
           
           setInventoryData(chartData);
-          console.log("Dashboard: Updated stats and inventory distribution");
+          console.log("Dashboard: Updated stats and inventory distribution for authenticated user");
         } else {
-          // Fallback to mock data if backend is unavailable
-          console.warn("Dashboard: Backend unavailable, using mock data");
-          setStats({
-            totalDiamonds: 0,
-            totalCaratWeight: 0,
-            totalEstimatedValue: 0,
-            matchedPairs: 0,
-            totalLeads: 0,
-            activeSubscriptions: 0,
-          });
-          
-          setInventoryData([
-            { name: "Round", value: 0 },
-            { name: "Princess", value: 0 },
-            { name: "Cushion", value: 0 },
-            { name: "Oval", value: 0 },
-            { name: "Pear", value: 0 },
-            { name: "Other", value: 0 },
-          ]);
+          console.warn("Dashboard: No diamond data received from backend");
+          // Keep empty state for authenticated user with no data
         }
         
       } catch (error) {
@@ -113,22 +106,65 @@ export default function Dashboard() {
           totalLeads: 0,
           activeSubscriptions: 0,
         });
-        
-        setInventoryData([
-          { name: "Round", value: 0 },
-          { name: "Princess", value: 0 },
-          { name: "Cushion", value: 0 },
-          { name: "Oval", value: 0 },
-          { name: "Pear", value: 0 },
-          { name: "Other", value: 0 },
-        ]);
       } finally {
         setLoading(false);
       }
     };
     
-    fetchData();
-  }, []);
+    if (!authLoading) {
+      fetchData();
+    }
+  }, [isAuthenticated, authLoading, tokens]);
+
+  // Show loading state during authentication
+  if (authLoading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-diamond-500 mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Authenticating...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  // Show authentication error or login prompt
+  if (!isAuthenticated) {
+    return (
+      <Layout>
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-3xl font-bold">Diamond Muzzle Dashboard</h1>
+            <p className="text-muted-foreground">
+              Secure, user-specific diamond inventory management.
+            </p>
+          </div>
+
+          {authError && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Authentication failed: {authError}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              You need to authenticate to view your diamond inventory. This ensures you only see your own diamonds.
+            </AlertDescription>
+          </Alert>
+
+          <Button onClick={login} className="w-full sm:w-auto">
+            Authenticate with Telegram
+          </Button>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -137,8 +173,13 @@ export default function Dashboard() {
           <div>
             <h1 className="text-3xl font-bold">Diamond Muzzle Dashboard</h1>
             <p className="text-muted-foreground">
-              Real-time overview of your diamond inventory connected to FastAPI backend.
+              Secure, user-specific diamond inventory connected to FastAPI backend.
             </p>
+            {tokens && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Authenticated User ID: {tokens.user_id}
+              </p>
+            )}
           </div>
           <ConnectionStatus />
         </div>
