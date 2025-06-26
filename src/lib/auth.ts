@@ -28,6 +28,7 @@ export interface AuthTokens {
 
 const FASTAPI_BASE_URL = "https://api.mazalbot.com/api/v1";
 const AUTH_STORAGE_KEY = "mazalbot_auth_tokens";
+const BACKEND_ACCESS_TOKEN = "your-backend-access-token"; // This should match your FastAPI BACKEND_ACCESS_TOKEN
 
 export class AuthService {
   private static instance: AuthService;
@@ -91,59 +92,21 @@ export class AuthService {
   async authenticate(): Promise<AuthTokens> {
     console.log("Starting authentication process...");
     
-    // If we have valid tokens, return them
-    if (this.tokens?.access_token) {
-      console.log("Using existing tokens for user:", this.tokens.user_id);
-      return this.tokens;
-    }
-
-    // Check if running in Telegram
-    if (this.isRunningInTelegram()) {
-      console.log("Running in Telegram, attempting initData authentication");
-      const initData = this.getTelegramInitData();
-      
-      if (initData) {
-        try {
-          const response = await fetch(`${FASTAPI_BASE_URL}/auth`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ initData }),
-          });
-
-          if (!response.ok) {
-            throw new Error(`Authentication failed: ${response.status}`);
-          }
-
-          const tokens: AuthTokens = await response.json();
-          this.storeTokens(tokens);
-          console.log("Successfully authenticated with Telegram initData for user:", tokens.user_id);
-          return tokens;
-        } catch (error) {
-          console.error("Telegram authentication failed:", error);
-          throw error;
-        }
-      } else {
-        throw new Error("No Telegram initData available");
-      }
-    } else {
-      // Fallback for development/testing outside Telegram
-      console.log("Not running in Telegram, using fallback authentication");
-      
-      // Try to get user ID from Telegram data if available, otherwise use development user
-      const telegramUserId = this.getTelegramUserId();
-      const userId = telegramUserId || "development_user";
-      
-      console.log("Using fallback authentication for user ID:", userId);
-      
-      const fallbackTokens: AuthTokens = {
-        access_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VySWQiLCJleHAiOjE2ODk2MDAwMDAsImlhdCI6MTY4OTU5NjQwMH0.kWzUkeMTF4LZbU9P5yRmsXrXhWfPlUPukGqI8Nq1rLo",
-        user_id: userId
-      };
-      this.storeTokens(fallbackTokens);
-      return fallbackTokens;
-    }
+    // Extract Telegram user ID
+    const telegramUserId = this.getTelegramUserId();
+    const userId = telegramUserId || "development_user";
+    
+    console.log("Using user ID:", userId);
+    
+    // Create tokens with BACKEND_ACCESS_TOKEN
+    const tokens: AuthTokens = {
+      access_token: BACKEND_ACCESS_TOKEN,
+      user_id: userId
+    };
+    
+    this.storeTokens(tokens);
+    console.log("Authentication successful for user:", userId);
+    return tokens;
   }
 
   async getAuthHeaders(): Promise<HeadersInit> {
@@ -156,6 +119,10 @@ export class AuthService {
 
   getCurrentTokens(): AuthTokens | null {
     return this.tokens;
+  }
+
+  getCurrentUserId(): string | null {
+    return this.tokens?.user_id || null;
   }
 
   logout(): void {

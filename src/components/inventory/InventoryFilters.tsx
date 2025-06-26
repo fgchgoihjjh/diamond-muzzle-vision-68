@@ -43,11 +43,8 @@ export function InventoryFilters({ onFilterChange }: InventoryFiltersProps) {
   const handleChange = (name: string, value: string) => {
     const newFilters = { ...filters, [name]: value };
     setFilters(newFilters);
-  };
-
-  const applyFilters = () => {
-    onFilterChange(filters);
-    setIsOpen(false);
+    // Apply filters immediately instead of waiting for Apply button
+    onFilterChange(newFilters);
   };
 
   const clearFilters = () => {
@@ -134,7 +131,7 @@ export function InventoryFilters({ onFilterChange }: InventoryFiltersProps) {
       </div>
       
       {isOpen && (
-        <div className="grid gap-4 p-4 mb-4 border rounded-lg bg-white">
+        <div className="grid gap-4 p-4 mb-4 border rounded-lg bg-white shadow-lg z-50 relative">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="shape">Shape</Label>
@@ -145,7 +142,7 @@ export function InventoryFilters({ onFilterChange }: InventoryFiltersProps) {
                 <SelectTrigger id="shape">
                   <SelectValue placeholder="Any shape" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-50 bg-white border shadow-lg">
                   <SelectItem value="">Any shape</SelectItem>
                   {shapes.map((shape) => (
                     <SelectItem key={shape} value={shape}>
@@ -165,7 +162,7 @@ export function InventoryFilters({ onFilterChange }: InventoryFiltersProps) {
                 <SelectTrigger id="color">
                   <SelectValue placeholder="Any color" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-50 bg-white border shadow-lg">
                   <SelectItem value="">Any color</SelectItem>
                   {colors.map((color) => (
                     <SelectItem key={color} value={color}>
@@ -185,7 +182,7 @@ export function InventoryFilters({ onFilterChange }: InventoryFiltersProps) {
                 <SelectTrigger id="clarity">
                   <SelectValue placeholder="Any clarity" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-50 bg-white border shadow-lg">
                   <SelectItem value="">Any clarity</SelectItem>
                   {clarities.map((clarity) => (
                     <SelectItem key={clarity} value={clarity}>
@@ -227,10 +224,7 @@ export function InventoryFilters({ onFilterChange }: InventoryFiltersProps) {
           
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setIsOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={applyFilters}>
-              Apply Filters
+              Close
             </Button>
           </div>
         </div>

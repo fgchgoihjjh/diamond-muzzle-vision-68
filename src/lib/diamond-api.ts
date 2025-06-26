@@ -13,8 +13,11 @@ interface FastApiResponse<T> {
 export async function fetchDiamonds(): Promise<FastApiResponse<Diamond[]>> {
   try {
     const headers = await authService.getAuthHeaders();
+    const userId = authService.getCurrentUserId();
+    
     console.log("Fetching diamonds from:", `${FASTAPI_BASE_URL}/get_all_stones`);
     console.log("Request headers:", headers);
+    console.log("User ID:", userId);
     
     const response = await fetch(`${FASTAPI_BASE_URL}/get_all_stones`, {
       method: "GET",
@@ -22,7 +25,6 @@ export async function fetchDiamonds(): Promise<FastApiResponse<Diamond[]>> {
     });
 
     console.log("Response status:", response.status);
-    console.log("Response headers:", Object.fromEntries(response.headers.entries()));
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -57,7 +59,6 @@ export async function fetchDiamonds(): Promise<FastApiResponse<Diamond[]>> {
   } catch (error) {
     console.error("Error fetching diamonds:", error);
     
-    // Enhanced error handling with more specific messages
     if (error instanceof TypeError && error.message === "Failed to fetch") {
       return { 
         error: "Unable to connect to backend server. Please ensure your FastAPI backend is running and CORS is configured properly." 
@@ -73,10 +74,13 @@ export async function fetchDiamonds(): Promise<FastApiResponse<Diamond[]>> {
 export async function updateDiamond(id: string, diamondData: Partial<Diamond>): Promise<FastApiResponse<Diamond>> {
   try {
     const headers = await authService.getAuthHeaders();
+    const userId = authService.getCurrentUserId();
+    
     console.log("Updating diamond:", id, diamondData);
 
-    // Convert our diamond data to backend format
+    // Convert our diamond data to backend format and include user ID
     const backendData = {
+      user_id: userId,
       stock: diamondData.stock_number,
       shape: diamondData.shape,
       weight: diamondData.carat,
@@ -116,48 +120,24 @@ export async function updateDiamond(id: string, diamondData: Partial<Diamond>): 
 export async function deleteDiamond(id: string): Promise<FastApiResponse<void>> {
   try {
     const headers = await authService.getAuthHeaders();
-    console.log("Deleting diamond with ID:", id);
-
-    // First, let's check if the diamond exists by fetching all diamonds
-    const allDiamonds = await fetchDiamonds();
-    const diamond = allDiamonds.data?.find(d => d.id.toString() === id.toString());
+    const userId = authService.getCurrentUserId();
     
-    if (!diamond) {
-      console.error("Diamond not found in current inventory");
-      return { error: "Diamond not found in current inventory" };
-    }
+    console.log("Deleting diamond with ID:", id, "for user:", userId);
 
-    console.log("Found diamond to delete:", diamond);
-
-    // Try different endpoints and ID formats
-    let response: Response;
-    
-    // Try with the original ID first
-    response = await fetch(`${FASTAPI_BASE_URL}/delete_stone/${id}`, {
+    const response = await fetch(`${FASTAPI_BASE_URL}/delete_stone/${id}`, {
       method: "DELETE",
       headers,
     });
 
     console.log("Delete response status:", response.status);
 
-    // If that fails, try with stock number
-    if (!response.ok && diamond.stock_number) {
-      console.log("Retrying with stock number:", diamond.stock_number);
-      response = await fetch(`${FASTAPI_BASE_URL}/delete_stone/${diamond.stock_number}`, {
-        method: "DELETE",
-        headers,
-      });
-      console.log("Delete with stock number response status:", response.status);
-    }
-
     if (!response.ok) {
       const errorText = await response.text();
       console.error("Delete error response:", errorText);
       
-      // Provide more helpful error message
       if (response.status === 404) {
         return { 
-          error: `Diamond not found on server. It may have already been deleted or the ID format is incorrect. Diamond ID: ${id}, Stock: ${diamond.stock_number}` 
+          error: `Diamond not found on server. It may have already been deleted. Diamond ID: ${id}` 
         };
       }
       
@@ -177,12 +157,17 @@ export async function deleteDiamond(id: string): Promise<FastApiResponse<void>> 
 export async function markDiamondAsSold(id: string): Promise<FastApiResponse<Diamond>> {
   try {
     const headers = await authService.getAuthHeaders();
-    console.log("Marking diamond as sold:", id);
+    const userId = authService.getCurrentUserId();
+    
+    console.log("Marking diamond as sold:", id, "for user:", userId);
 
     const response = await fetch(`${FASTAPI_BASE_URL}/sold`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ stone_id: id }),
+      body: JSON.stringify({ 
+        stone_id: id,
+        user_id: userId 
+      }),
     });
 
     console.log("Mark as sold response status:", response.status);
@@ -207,17 +192,25 @@ export async function markDiamondAsSold(id: string): Promise<FastApiResponse<Dia
 export async function uploadDiamondCSV(file: File): Promise<FastApiResponse<any>> {
   try {
     const headers = await authService.getAuthHeaders();
-    delete headers["Content-Type"]; // Let browser set content type for FormData
+    const userId = authService.getCurrentUserId();
+    
+    // Remove Content-Type to let browser set it for FormData
+    const authHeaders = { ...headers };
+    delete authHeaders["Content-Type"];
     
     const formData = new FormData();
     formData.append("file", file);
+    if (userId) {
+      formData.append("user_id", userId);
+    }
 
     console.log("Uploading CSV to:", `${FASTAPI_BASE_URL}/upload_inventory`);
-    console.log("Upload headers:", headers);
+    console.log("Upload headers:", authHeaders);
+    console.log("User ID:", userId);
 
     const response = await fetch(`${FASTAPI_BASE_URL}/upload_inventory`, {
       method: "POST",
-      headers,
+      headers: authHeaders,
       body: formData,
     });
 
@@ -243,6 +236,52 @@ export async function uploadDiamondCSV(file: File): Promise<FastApiResponse<any>
     
     return { 
       error: error instanceof Error ? error.message : "Failed to upload CSV" 
+    };
+  }
+}
+
+export async function createDiamond(diamondData: Partial<Diamond>): Promise<FastApiResponse<Diamond>> {
+  try {
+    const headers = await authService.getAuthHeaders();
+    const userId = authService.getCurrentUserId();
+    
+    console.log("Creating diamond:", diamondData, "for user:", userId);
+
+    // Convert our diamond data to backend format and include user ID
+    const backendData = {
+      user_id: userId,
+      stock: diamondData.stock_number,
+      shape: diamondData.shape,
+      weight: diamondData.carat,
+      color: diamondData.color,
+      clarity: diamondData.clarity,
+      cut: diamondData.cut,
+      price_per_carat: diamondData.price,
+      lab: diamondData.lab,
+      certificate_number: diamondData.certificate_number,
+    };
+
+    const response = await fetch(`${FASTAPI_BASE_URL}/diamonds`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(backendData),
+    });
+
+    console.log("Create response status:", response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Create error response:", errorText);
+      throw new Error(`Create failed: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    console.log("Create response:", data);
+    return { data };
+  } catch (error) {
+    console.error("Error creating diamond:", error);
+    return { 
+      error: error instanceof Error ? error.message : "Failed to create diamond" 
     };
   }
 }
