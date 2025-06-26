@@ -1,21 +1,24 @@
+import { telegramAuthService, TelegramAuthService } from './telegram-auth';
+import { TelegramAuthResponse, TelegramUser } from '@/types/telegram';
 
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-
+// Keep the existing SecureAuthTokens interface for backward compatibility
 export interface SecureAuthTokens {
   access_token: string;
   user_id: string;
   session_id: string;
 }
 
-const AUTH_STORAGE_KEY = "mazalbot_secure_session";
+// Extended interface with Telegram data
+export interface TelegramSecureTokens extends SecureAuthTokens {
+  telegram_user: TelegramUser;
+}
 
 export class SecureAuthService {
   private static instance: SecureAuthService;
-  private tokens: SecureAuthTokens | null = null;
+  private telegramAuth: TelegramAuthService;
 
   private constructor() {
-    this.loadStoredSession();
+    this.telegramAuth = telegramAuthService;
   }
 
   static getInstance(): SecureAuthService {
@@ -25,109 +28,78 @@ export class SecureAuthService {
     return SecureAuthService.instance;
   }
 
-  private loadStoredSession(): void {
+  async signInWithTelegram(): Promise<TelegramSecureTokens> {
     try {
-      const stored = sessionStorage.getItem(AUTH_STORAGE_KEY);
-      if (stored) {
-        this.tokens = JSON.parse(stored);
-      }
-    } catch (error) {
-      console.error("Failed to load stored session");
-      this.clearSession();
-    }
-  }
-
-  private storeSession(tokens: SecureAuthTokens): void {
-    try {
-      this.tokens = tokens;
-      sessionStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(tokens));
-    } catch (error) {
-      console.error("Failed to store session");
-    }
-  }
-
-  private clearSession(): void {
-    this.tokens = null;
-    sessionStorage.removeItem(AUTH_STORAGE_KEY);
-  }
-
-  async signInWithTelegram(): Promise<SecureAuthTokens> {
-    try {
-      // In a real implementation, this would use Telegram WebApp authentication
-      // For now, we'll use Supabase's anonymous auth as a placeholder
-      const { data, error } = await supabase.auth.signInAnonymously();
+      const telegramTokens = await this.telegramAuth.authenticate();
       
-      if (error) throw error;
-      
-      if (data.user) {
-        const tokens: SecureAuthTokens = {
-          access_token: data.session?.access_token || '',
-          user_id: data.user.id,
-          session_id: data.session?.refresh_token || '',
-        };
-        
-        this.storeSession(tokens);
-        return tokens;
-      }
-      
-      throw new Error('Authentication failed');
+      return {
+        access_token: telegramTokens.access_token,
+        user_id: telegramTokens.user_id,
+        session_id: telegramTokens.session_id,
+        telegram_user: telegramTokens.telegram_user
+      };
     } catch (error) {
-      console.error('Authentication error:', error);
+      console.error('Telegram authentication error:', error);
       throw error;
     }
   }
 
-  async refreshSession(): Promise<SecureAuthTokens | null> {
+  async refreshSession(): Promise<TelegramSecureTokens | null> {
     try {
-      const { data, error } = await supabase.auth.refreshSession();
+      // Try to re-authenticate with existing Telegram data
+      const telegramTokens = await this.telegramAuth.authenticate();
       
-      if (error) throw error;
-      
-      if (data.session?.user) {
-        const tokens: SecureAuthTokens = {
-          access_token: data.session.access_token,
-          user_id: data.session.user.id,
-          session_id: data.session.refresh_token || '',
-        };
-        
-        this.storeSession(tokens);
-        return tokens;
-      }
-      
-      return null;
+      return {
+        access_token: telegramTokens.access_token,
+        user_id: telegramTokens.user_id,
+        session_id: telegramTokens.session_id,
+        telegram_user: telegramTokens.telegram_user
+      };
     } catch (error) {
       console.error('Session refresh failed:', error);
-      this.clearSession();
+      this.logout();
       return null;
     }
   }
 
   async getAuthHeaders(): Promise<HeadersInit> {
-    if (!this.tokens) {
-      await this.signInWithTelegram();
-    }
-    
+    return this.telegramAuth.getAuthHeaders();
+  }
+
+  getCurrentTokens(): TelegramSecureTokens | null {
+    const telegramTokens = this.telegramAuth.getCurrentTokens();
+    if (!telegramTokens) return null;
+
     return {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${this.tokens?.access_token}`,
+      access_token: telegramTokens.access_token,
+      user_id: telegramTokens.user_id,
+      session_id: telegramTokens.session_id,
+      telegram_user: telegramTokens.telegram_user
     };
   }
 
-  getCurrentTokens(): SecureAuthTokens | null {
-    return this.tokens;
+  getCurrentUserId(): string | null {
+    return this.telegramAuth.getCurrentUserId();
   }
 
-  getCurrentUserId(): string | null {
-    return this.tokens?.user_id || null;
+  getTelegramUser(): TelegramUser | null {
+    return this.telegramAuth.getCurrentUser();
+  }
+
+  getTelegramUserId(): number | null {
+    return this.telegramAuth.getTelegramUserId();
   }
 
   logout(): void {
-    this.clearSession();
-    supabase.auth.signOut();
+    this.telegramAuth.logout();
   }
 
   isAuthenticated(): boolean {
-    return !!(this.tokens?.access_token);
+    return this.telegramAuth.isAuthenticated();
+  }
+
+  isTelegramWebApp(): boolean {
+    return this.telegramAuth.isTelegramWebApp();
   }
 }
 
