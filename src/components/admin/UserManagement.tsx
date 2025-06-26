@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -220,18 +219,6 @@ export function UserManagement({ users, onRefresh, loading }: UserManagementProp
         .eq('id', selectedUser.id);
 
       if (updateError) throw updateError;
-
-      if (selectedUser.telegram_id) {
-        const { error: logError } = await supabase
-          .from('blocked_users')
-          .insert([{
-            telegram_id: selectedUser.telegram_id,
-            blocked_by_telegram_id: 0,
-            reason: blockReason,
-          }]);
-
-        if (logError) console.error('Error logging block action:', logError);
-      }
 
       toast({
         title: "Success",
