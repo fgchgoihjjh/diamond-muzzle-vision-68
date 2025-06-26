@@ -127,7 +127,7 @@ export class AuthService {
     }
 
     try {
-      const response = await fetch(`${FASTAPI_BASE_URL}/auth/telegram-verify`, {
+      const response = await fetch(`${FASTAPI_BASE_URL}/auth`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
