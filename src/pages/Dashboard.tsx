@@ -1,19 +1,17 @@
-
 import { useEffect, useState } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { InventoryChart } from "@/components/dashboard/InventoryChart";
 import { ConnectionStatus } from "@/components/ConnectionStatus";
-import { Diamond, Coins, Users, BadgeCheck, Weight, DollarSign, AlertCircle, User } from "lucide-react";
+import { Diamond, Coins, Users, BadgeCheck, Weight, DollarSign, AlertCircle } from "lucide-react";
 import { fetchDiamonds } from "@/lib/diamond-api";
 import { Diamond as DiamondType, DashboardMetrics } from "@/types/diamond";
 import { useAuth } from "@/contexts/AuthContext";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function Dashboard() {
-  const { isAuthenticated, isLoading: authLoading, login, error: authError, tokens, currentUser } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, login, error: authError, tokens } = useAuth();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<DashboardMetrics>({
     totalDiamonds: 0,
@@ -35,25 +33,22 @@ export default function Dashboard() {
   
   useEffect(() => {
     const fetchData = async () => {
-      if (!isAuthenticated || !currentUser) {
+      if (!isAuthenticated) {
         setLoading(false);
         return;
       }
 
       setLoading(true);
       try {
-        console.log("Dashboard: Fetching diamonds for user:", {
-          id: currentUser.id,
-          first_name: currentUser.first_name,
-          username: currentUser.username,
-        });
+        console.log("Dashboard: Fetching user-specific diamond data from FastAPI backend...");
+        console.log("Dashboard: Current user tokens:", tokens);
         
         // Fetch real diamond data from FastAPI backend (now user-filtered)
         const response = await fetchDiamonds();
         
         if (response.data) {
           const diamonds = response.data;
-          console.log(`Dashboard: Successfully loaded ${diamonds.length} diamonds for user ${currentUser.first_name} (ID: ${currentUser.id})`);
+          console.log("Dashboard: Successfully loaded", diamonds.length, "user-specific diamonds");
           
           // Calculate real statistics
           const totalDiamonds = diamonds.length;
@@ -94,7 +89,7 @@ export default function Dashboard() {
           ];
           
           setInventoryData(chartData);
-          console.log(`Dashboard: Updated stats and inventory distribution for ${currentUser.first_name}`);
+          console.log("Dashboard: Updated stats and inventory distribution for authenticated user");
         } else {
           console.warn("Dashboard: No diamond data received from backend");
           // Keep empty state for authenticated user with no data
@@ -119,7 +114,7 @@ export default function Dashboard() {
     if (!authLoading) {
       fetchData();
     }
-  }, [isAuthenticated, authLoading, currentUser]);
+  }, [isAuthenticated, authLoading, tokens]);
 
   // Show loading state during authentication
   if (authLoading) {
@@ -180,25 +175,13 @@ export default function Dashboard() {
             <p className="text-muted-foreground">
               Secure, user-specific diamond inventory connected to FastAPI backend.
             </p>
-          </div>
-          <div className="flex items-center gap-4">
-            {currentUser && (
-              <Card className="px-4 py-2">
-                <div className="flex items-center gap-2">
-                  <User className="h-4 w-4" />
-                  <div className="text-sm">
-                    <div className="font-medium">
-                      {currentUser.first_name} {currentUser.last_name}
-                    </div>
-                    <div className="text-muted-foreground">
-                      {currentUser.username ? `@${currentUser.username}` : `ID: ${currentUser.id}`}
-                    </div>
-                  </div>
-                </div>
-              </Card>
+            {tokens && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Authenticated User ID: {tokens.user_id}
+              </p>
             )}
-            <ConnectionStatus />
           </div>
+          <ConnectionStatus />
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">

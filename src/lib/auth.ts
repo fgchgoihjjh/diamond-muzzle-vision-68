@@ -7,8 +7,6 @@ interface TelegramWebApp {
       first_name: string;
       last_name?: string;
       username?: string;
-      language_code?: string;
-      is_premium?: boolean;
     };
   };
   ready: () => void;
@@ -23,19 +21,9 @@ declare global {
   }
 }
 
-export interface TelegramUser {
-  id: number;
-  first_name: string;
-  last_name?: string;
-  username?: string;
-  language_code?: string;
-  is_premium?: boolean;
-}
-
 export interface AuthTokens {
   access_token: string;
   user_id: string;
-  telegram_user?: TelegramUser;
 }
 
 const FASTAPI_BASE_URL = "https://api.mazalbot.com/api/v1";
@@ -89,24 +77,11 @@ export class AuthService {
     return null;
   }
 
-  private getTelegramUser(): TelegramUser | null {
-    if (window.Telegram?.WebApp?.initDataUnsafe?.user) {
-      const user = window.Telegram.WebApp.initDataUnsafe.user;
-      return {
-        id: user.id,
-        first_name: user.first_name,
-        last_name: user.last_name,
-        username: user.username,
-        language_code: user.language_code,
-        is_premium: user.is_premium || false,
-      };
+  private getTelegramUserId(): string | null {
+    if (window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {
+      return window.Telegram.WebApp.initDataUnsafe.user.id.toString();
     }
     return null;
-  }
-
-  private getTelegramUserId(): string | null {
-    const user = this.getTelegramUser();
-    return user ? user.id.toString() : null;
   }
 
   private isRunningInTelegram(): boolean {
@@ -119,7 +94,6 @@ export class AuthService {
     // If we have valid tokens, return them
     if (this.tokens?.access_token) {
       console.log("Using existing tokens for user:", this.tokens.user_id);
-      console.log("Telegram user info:", this.tokens.telegram_user);
       return this.tokens;
     }
 
@@ -127,11 +101,8 @@ export class AuthService {
     if (this.isRunningInTelegram()) {
       console.log("Running in Telegram, attempting initData authentication");
       const initData = this.getTelegramInitData();
-      const telegramUser = this.getTelegramUser();
       
-      console.log("Extracted Telegram user:", telegramUser);
-      
-      if (initData && telegramUser) {
+      if (initData) {
         try {
           const response = await fetch(`${FASTAPI_BASE_URL}/auth`, {
             method: "POST",
@@ -145,44 +116,30 @@ export class AuthService {
             throw new Error(`Authentication failed: ${response.status}`);
           }
 
-          const backendTokens = await response.json();
-          
-          // Combine backend response with Telegram user info
-          const tokens: AuthTokens = {
-            access_token: backendTokens.access_token,
-            user_id: telegramUser.id.toString(),
-            telegram_user: telegramUser,
-          };
-          
+          const tokens: AuthTokens = await response.json();
           this.storeTokens(tokens);
-          console.log("Successfully authenticated Telegram user:", {
-            id: telegramUser.id,
-            first_name: telegramUser.first_name,
-            username: telegramUser.username,
-          });
+          console.log("Successfully authenticated with Telegram initData for user:", tokens.user_id);
           return tokens;
         } catch (error) {
           console.error("Telegram authentication failed:", error);
           throw error;
         }
       } else {
-        throw new Error("No Telegram user data available");
+        throw new Error("No Telegram initData available");
       }
     } else {
       // Fallback for development/testing outside Telegram
       console.log("Not running in Telegram, using fallback authentication");
       
       // Try to get user ID from Telegram data if available, otherwise use development user
-      const telegramUser = this.getTelegramUser();
-      const userId = telegramUser?.id.toString() || "development_user";
+      const telegramUserId = this.getTelegramUserId();
+      const userId = telegramUserId || "development_user";
       
       console.log("Using fallback authentication for user ID:", userId);
-      console.log("Telegram user (if available):", telegramUser);
       
       const fallbackTokens: AuthTokens = {
         access_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VySWQiLCJleHAiOjE2ODk2MDAwMDAsImlhdCI6MTY4OTU5NjQwMH0.kWzUkeMTF4LZbU9P5yRmsXrXhWfPlUPukGqI8Nq1rLo",
-        user_id: userId,
-        telegram_user: telegramUser || undefined,
+        user_id: userId
       };
       this.storeTokens(fallbackTokens);
       return fallbackTokens;
@@ -199,10 +156,6 @@ export class AuthService {
 
   getCurrentTokens(): AuthTokens | null {
     return this.tokens;
-  }
-
-  getCurrentUser(): TelegramUser | null {
-    return this.tokens?.telegram_user || null;
   }
 
   logout(): void {
