@@ -1,30 +1,22 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { 
-  Edit, 
-  Ban, 
-  CheckCircle, 
-  MessageCircle, 
-  Search,
-  Send,
-  UserX
-} from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus, Search, Phone, MessageCircle, UserX, Edit, Trash2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface User {
   id: string;
+  email?: string;
   first_name: string;
   last_name?: string;
   phone_number?: string;
@@ -37,52 +29,37 @@ interface User {
   subscription_plan?: string;
 }
 
-interface UserSpending {
-  user_id: string;
-  total_cost: number;
-  total_tokens: number;
-  api_calls: number;
-}
-
 interface UserManagementProps {
   users: User[];
   onRefresh: () => void;
   loading: boolean;
 }
 
-interface EditUserFormData {
+interface UserFormData {
   first_name: string;
   last_name?: string;
   phone_number?: string;
+  telegram_id?: string;
   status: string;
-}
-
-interface TelegramMessageFormData {
-  message: string;
+  subscription_plan: string;
+  is_premium: boolean;
 }
 
 export function UserManagement({ users, onRefresh, loading }: UserManagementProps) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [userSpending, setUserSpending] = useState<Record<string, UserSpending>>({});
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isMessageDialogOpen, setIsMessageDialogOpen] = useState(false);
-  const [isBlockDialogOpen, setIsBlockDialogOpen] = useState(false);
-  const [blockReason, setBlockReason] = useState("");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
   const { toast } = useToast();
 
-  const editForm = useForm<EditUserFormData>({
+  const form = useForm<UserFormData>({
     defaultValues: {
       first_name: "",
       last_name: "",
       phone_number: "",
+      telegram_id: "",
       status: "active",
-    },
-  });
-
-  const messageForm = useForm<TelegramMessageFormData>({
-    defaultValues: {
-      message: "",
+      subscription_plan: "free",
+      is_premium: false,
     },
   });
 
@@ -92,184 +69,120 @@ export function UserManagement({ users, onRefresh, loading }: UserManagementProp
     user.telegram_id?.toString().includes(searchTerm)
   );
 
-  useEffect(() => {
-    fetchUserSpending();
-  }, [users]);
-
-  const fetchUserSpending = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('api_usage')
-        .select('telegram_id, cost, tokens_used');
-
-      if (error) throw error;
-
-      const spendingMap: Record<string, UserSpending> = {};
-      
-      data?.forEach((usage) => {
-        const user = users.find(u => u.telegram_id === usage.telegram_id);
-        if (user) {
-          if (!spendingMap[user.id]) {
-            spendingMap[user.id] = {
-              user_id: user.id,
-              total_cost: 0,
-              total_tokens: 0,
-              api_calls: 0,
-            };
-          }
-          spendingMap[user.id].total_cost += usage.cost || 0;
-          spendingMap[user.id].total_tokens += usage.tokens_used || 0;
-          spendingMap[user.id].api_calls += 1;
-        }
-      });
-
-      setUserSpending(spendingMap);
-    } catch (error) {
-      console.error('Error fetching user spending:', error);
-    }
-  };
-
-  const handleEditUser = (user: User) => {
-    setSelectedUser(user);
-    editForm.reset({
+  const handleEdit = (user: User) => {
+    setEditingUser(user);
+    form.reset({
       first_name: user.first_name,
       last_name: user.last_name || "",
       phone_number: user.phone_number || "",
+      telegram_id: user.telegram_id?.toString() || "",
       status: user.status,
+      subscription_plan: user.subscription_plan || "free",
+      is_premium: user.is_premium || false,
     });
-    setIsEditDialogOpen(true);
+    setIsDialogOpen(true);
   };
 
-  const handleSendMessage = (user: User) => {
-    setSelectedUser(user);
-    messageForm.reset({ message: "" });
-    setIsMessageDialogOpen(true);
-  };
-
-  const handleBlockUser = (user: User) => {
-    setSelectedUser(user);
-    setBlockReason("");
-    setIsBlockDialogOpen(true);
-  };
-
-  const onEditSubmit = async (data: EditUserFormData) => {
-    if (!selectedUser) return;
+  const handleDelete = async (userId: string) => {
+    if (!confirm("Are you sure you want to delete this user?")) return;
 
     try {
       const { error } = await supabase
         .from('user_profiles')
-        .update(data)
-        .eq('id', selectedUser.id);
+        .delete()
+        .eq('id', userId);
 
       if (error) throw error;
 
       toast({
         title: "Success",
-        description: "User updated successfully",
+        description: "User deleted successfully",
       });
 
-      setIsEditDialogOpen(false);
       onRefresh();
     } catch (error) {
-      console.error('Error updating user:', error);
+      console.error('Error deleting user:', error);
       toast({
         title: "Error",
-        description: "Failed to update user",
+        description: "Failed to delete user",
         variant: "destructive",
       });
     }
   };
 
-  const onMessageSubmit = async (data: TelegramMessageFormData) => {
-    if (!selectedUser?.telegram_id) {
-      toast({
-        title: "Error",
-        description: "User doesn't have a Telegram ID",
-        variant: "destructive",
-      });
-      return;
-    }
-
+  const onSubmit = async (data: UserFormData) => {
     try {
-      console.log(`Sending message to ${selectedUser.telegram_id}: ${data.message}`);
-      
-      toast({
-        title: "Success",
-        description: "Message sent successfully",
-      });
+      const userData = {
+        first_name: data.first_name,
+        last_name: data.last_name || null,
+        phone_number: data.phone_number || null,
+        telegram_id: data.telegram_id ? parseInt(data.telegram_id) : null,
+        status: data.status,
+        subscription_plan: data.subscription_plan,
+        is_premium: data.is_premium,
+      };
 
-      setIsMessageDialogOpen(false);
-      messageForm.reset();
-    } catch (error) {
-      console.error('Error sending message:', error);
-      toast({
-        title: "Error",
-        description: "Failed to send message",
-        variant: "destructive",
-      });
-    }
-  };
+      if (editingUser) {
+        // Update existing user
+        const { error } = await supabase
+          .from('user_profiles')
+          .update(userData)
+          .eq('id', editingUser.id);
 
-  const confirmBlockUser = async () => {
-    if (!selectedUser) return;
+        if (error) throw error;
 
-    try {
-      const { error: updateError } = await supabase
-        .from('user_profiles')
-        .update({ status: 'blocked' })
-        .eq('id', selectedUser.id);
+        toast({
+          title: "Success",
+          description: "User updated successfully",
+        });
+      } else {
+        // Create new user
+        const { error } = await supabase
+          .from('user_profiles')
+          .insert([userData]);
 
-      if (updateError) throw updateError;
+        if (error) throw error;
 
-      if (selectedUser.telegram_id) {
-        const { error: logError } = await supabase
-          .from('blocked_users')
-          .insert([{
-            telegram_id: selectedUser.telegram_id,
-            blocked_by_telegram_id: 0,
-            reason: blockReason,
-          }]);
-
-        if (logError) console.error('Error logging block action:', logError);
+        toast({
+          title: "Success",
+          description: "User added successfully",
+        });
       }
 
-      toast({
-        title: "Success",
-        description: "User blocked successfully",
-      });
-
-      setIsBlockDialogOpen(false);
+      form.reset();
+      setIsDialogOpen(false);
+      setEditingUser(null);
       onRefresh();
     } catch (error) {
-      console.error('Error blocking user:', error);
+      console.error('Error saving user:', error);
       toast({
         title: "Error",
-        description: "Failed to block user",
+        description: `Failed to ${editingUser ? 'update' : 'add'} user`,
         variant: "destructive",
       });
     }
   };
 
-  const unblockUser = async (user: User) => {
+  const handleStatusChange = async (userId: string, newStatus: string) => {
     try {
       const { error } = await supabase
         .from('user_profiles')
-        .update({ status: 'active' })
-        .eq('id', user.id);
+        .update({ status: newStatus })
+        .eq('id', userId);
 
       if (error) throw error;
 
       toast({
         title: "Success",
-        description: "User unblocked successfully",
+        description: "User status updated successfully",
       });
 
       onRefresh();
     } catch (error) {
-      console.error('Error unblocking user:', error);
+      console.error('Error updating user status:', error);
       toast({
         title: "Error",
-        description: "Failed to unblock user",
+        description: "Failed to update user status",
         variant: "destructive",
       });
     }
@@ -296,274 +209,247 @@ export function UserManagement({ users, onRefresh, loading }: UserManagementProp
   }
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
+    <Card>
+      <CardHeader>
+        <div className="flex justify-between items-center">
           <CardTitle>User Management</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Manage users, send messages, and track spending
-          </p>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search users..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
-              />
-            </div>
+          <Dialog open={isDialogOpen} onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            if (!open) {
+              setEditingUser(null);
+              form.reset();
+            }
+          }}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Add User
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{editingUser ? 'Edit User' : 'Add New User'}</DialogTitle>
+              </DialogHeader>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="first_name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>First Name</FormLabel>
+                          <FormControl>
+                            <Input {...field} required />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="last_name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Last Name</FormLabel>
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <FormField
+                    control={form.control}
+                    name="phone_number"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Phone</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="telegram_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Telegram ID</FormLabel>
+                        <FormControl>
+                          <Input {...field} type="number" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="status"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Status</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select status" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="active">Active</SelectItem>
+                              <SelectItem value="inactive">Inactive</SelectItem>
+                              <SelectItem value="suspended">Suspended</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="subscription_plan"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Plan</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select plan" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="free">Free</SelectItem>
+                              <SelectItem value="premium">Premium</SelectItem>
+                              <SelectItem value="enterprise">Enterprise</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <div className="flex justify-end space-x-2">
+                    <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit">
+                      {editingUser ? 'Update User' : 'Add User'}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search users..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9"
+            />
+          </div>
 
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Contact</TableHead>
-                    <TableHead>Telegram ID</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Plan</TableHead>
-                    <TableHead>Spending</TableHead>
-                    <TableHead>Actions</TableHead>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Contact</TableHead>
+                  <TableHead>Telegram ID</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Plan</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredUsers.map((user) => (
+                  <TableRow key={user.id}>
+                    <TableCell className="font-medium">
+                      {user.first_name} {user.last_name}
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        {user.phone_number && (
+                          <div className="flex items-center text-sm">
+                            <Phone className="h-3 w-3 mr-1" />
+                            {user.phone_number}
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {user.telegram_id && (
+                        <div className="flex items-center">
+                          <MessageCircle className="h-3 w-3 mr-1" />
+                          {user.telegram_id}
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Select
+                        value={user.status}
+                        onValueChange={(value) => handleStatusChange(user.id, value)}
+                      >
+                        <SelectTrigger className="w-32">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="active">Active</SelectItem>
+                          <SelectItem value="inactive">Inactive</SelectItem>
+                          <SelectItem value="suspended">Suspended</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={user.is_premium ? 'default' : 'outline'}>
+                        {user.subscription_plan || 'free'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {new Date(user.created_at).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex space-x-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleEdit(user)}
+                        >
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDelete(user.id)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredUsers.map((user) => {
-                    const spending = userSpending[user.id];
-                    return (
-                      <TableRow key={user.id}>
-                        <TableCell className="font-medium">
-                          {user.first_name} {user.last_name}
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-1">
-                            {user.phone_number && (
-                              <div className="text-sm">{user.phone_number}</div>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {user.telegram_id || 'N/A'}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={user.status === 'active' ? 'default' : 'destructive'}>
-                            {user.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={user.is_premium ? 'default' : 'outline'}>
-                            {user.subscription_plan || 'free'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {spending ? (
-                            <div className="text-sm">
-                              <div>${spending.total_cost.toFixed(2)}</div>
-                              <div className="text-muted-foreground">
-                                {spending.api_calls} calls
-                              </div>
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground">No usage</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex space-x-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleEditUser(user)}
-                            >
-                              <Edit className="h-3 w-3" />
-                            </Button>
-                            {user.telegram_id && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleSendMessage(user)}
-                              >
-                                <MessageCircle className="h-3 w-3" />
-                              </Button>
-                            )}
-                            {user.status === 'active' ? (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleBlockUser(user)}
-                              >
-                                <Ban className="h-3 w-3" />
-                              </Button>
-                            ) : (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => unblockUser(user)}
-                              >
-                                <CheckCircle className="h-3 w-3" />
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                  {filteredUsers.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center text-muted-foreground">
-                        No users found
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Edit User Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit User</DialogTitle>
-          </DialogHeader>
-          <Form {...editForm}>
-            <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={editForm.control}
-                  name="first_name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>First Name</FormLabel>
-                      <FormControl>
-                        <Input {...field} required />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={editForm.control}
-                  name="last_name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Last Name</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <FormField
-                control={editForm.control}
-                name="phone_number"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Phone Number</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
+                ))}
+                {filteredUsers.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center text-muted-foreground">
+                      No users found
+                    </TableCell>
+                  </TableRow>
                 )}
-              />
-              <div className="flex justify-end space-x-2">
-                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">Save Changes</Button>
-              </div>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Send Message Dialog */}
-      <Dialog open={isMessageDialogOpen} onOpenChange={setIsMessageDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Send Telegram Message</DialogTitle>
-          </DialogHeader>
-          <Form {...messageForm}>
-            <form onSubmit={messageForm.handleSubmit(onMessageSubmit)} className="space-y-4">
-              <div>
-                <Label>Sending to: {selectedUser?.first_name} {selectedUser?.last_name}</Label>
-                <p className="text-sm text-muted-foreground">
-                  Telegram ID: {selectedUser?.telegram_id}
-                </p>
-              </div>
-              <FormField
-                control={messageForm.control}
-                name="message"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Message</FormLabel>
-                    <FormControl>
-                      <Textarea 
-                        {...field} 
-                        placeholder="Type your message here..."
-                        className="min-h-[100px]"
-                        required 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <div className="flex justify-end space-x-2">
-                <Button type="button" variant="outline" onClick={() => setIsMessageDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">
-                  <Send className="h-4 w-4 mr-2" />
-                  Send Message
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Block User Dialog */}
-      <Dialog open={isBlockDialogOpen} onOpenChange={setIsBlockDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Block User</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>User: {selectedUser?.first_name} {selectedUser?.last_name}</Label>
-              <p className="text-sm text-muted-foreground">
-                This will block the user from accessing the system.
-              </p>
-            </div>
-            <div>
-              <Label htmlFor="reason">Reason for blocking</Label>
-              <Textarea
-                id="reason"
-                value={blockReason}
-                onChange={(e) => setBlockReason(e.target.value)}
-                placeholder="Enter reason for blocking this user..."
-                className="min-h-[80px]"
-              />
-            </div>
-            <div className="flex justify-end space-x-2">
-              <Button variant="outline" onClick={() => setIsBlockDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button variant="destructive" onClick={confirmBlockUser}>
-                <UserX className="h-4 w-4 mr-2" />
-                Block User
-              </Button>
-            </div>
+              </TableBody>
+            </Table>
           </div>
-        </DialogContent>
-      </Dialog>
-    </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
