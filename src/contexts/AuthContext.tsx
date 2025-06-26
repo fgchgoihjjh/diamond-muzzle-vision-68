@@ -1,9 +1,10 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { authService, AuthTokens } from '@/lib/auth';
+import { authService, AuthTokens, TelegramUser } from '@/lib/auth';
 
 interface AuthContextType {
   tokens: AuthTokens | null;
+  currentUser: TelegramUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   login: () => Promise<void>;
@@ -15,6 +16,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [tokens, setTokens] = useState<AuthTokens | null>(null);
+  const [currentUser, setCurrentUser] = useState<TelegramUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,7 +26,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setError(null);
       const newTokens = await authService.authenticate();
       setTokens(newTokens);
-      console.log('Authentication successful');
+      setCurrentUser(newTokens.telegram_user || null);
+      console.log('Authentication successful for user:', newTokens.telegram_user);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Authentication failed';
       setError(errorMessage);
@@ -37,6 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = () => {
     authService.logout();
     setTokens(null);
+    setCurrentUser(null);
     setError(null);
   };
 
@@ -48,6 +52,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const existingTokens = authService.getCurrentTokens();
         if (existingTokens) {
           setTokens(existingTokens);
+          setCurrentUser(existingTokens.telegram_user || null);
+          console.log('Restored authentication for user:', existingTokens.telegram_user);
         } else {
           // Attempt to authenticate
           await login();
@@ -64,6 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const value: AuthContextType = {
     tokens,
+    currentUser,
     isAuthenticated: !!tokens?.access_token,
     isLoading,
     login,

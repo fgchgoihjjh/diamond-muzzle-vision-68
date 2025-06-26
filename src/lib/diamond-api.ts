@@ -13,8 +13,11 @@ interface FastApiResponse<T> {
 export async function fetchDiamonds(): Promise<FastApiResponse<Diamond[]>> {
   try {
     const headers = await authService.getAuthHeaders();
+    const currentUser = authService.getCurrentUser();
+    
     console.log("Fetching diamonds from:", `${FASTAPI_BASE_URL}/get_all_stones`);
     console.log("Request headers:", headers);
+    console.log("Current authenticated user:", currentUser);
     
     const response = await fetch(`${FASTAPI_BASE_URL}/get_all_stones`, {
       method: "GET",
@@ -32,6 +35,7 @@ export async function fetchDiamonds(): Promise<FastApiResponse<Diamond[]>> {
 
     const data = await response.json();
     console.log("Raw API response:", data);
+    console.log(`Expected user-filtered data for ${currentUser?.first_name || 'unknown'} (ID: ${currentUser?.id || 'unknown'})`);
     
     // Transform FastAPI response to match our Diamond interface
     const diamonds: Diamond[] = data.map((stone: any, index: number) => ({
@@ -52,7 +56,7 @@ export async function fetchDiamonds(): Promise<FastApiResponse<Diamond[]>> {
       table: stone.table ? parseFloat(stone.table) : undefined,
     }));
 
-    console.log("Transformed diamonds:", diamonds);
+    console.log(`Transformed ${diamonds.length} diamonds for user ${currentUser?.first_name || 'unknown'}`);
     return { data: diamonds };
   } catch (error) {
     console.error("Error fetching diamonds:", error);
