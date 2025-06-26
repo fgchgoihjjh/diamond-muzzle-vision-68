@@ -20,6 +20,7 @@ export type Database = {
           response_data: Json | null
           telegram_id: number | null
           tokens_used: number | null
+          user_id: string | null
         }
         Insert: {
           api_type: string
@@ -31,6 +32,7 @@ export type Database = {
           response_data?: Json | null
           telegram_id?: number | null
           tokens_used?: number | null
+          user_id?: string | null
         }
         Update: {
           api_type?: string
@@ -42,6 +44,7 @@ export type Database = {
           response_data?: Json | null
           telegram_id?: number | null
           tokens_used?: number | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -87,6 +90,7 @@ export type Database = {
           is_active: boolean | null
           session_title: string
           updated_at: string | null
+          user_id: string | null
         }
         Insert: {
           created_at?: string | null
@@ -94,6 +98,7 @@ export type Database = {
           is_active?: boolean | null
           session_title?: string
           updated_at?: string | null
+          user_id?: string | null
         }
         Update: {
           created_at?: string | null
@@ -101,6 +106,7 @@ export type Database = {
           is_active?: boolean | null
           session_title?: string
           updated_at?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }

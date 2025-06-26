@@ -8,11 +8,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Phone, MessageCircle, UserX, Edit, Trash2 } from "lucide-react";
+import { Plus, Search, Phone, MessageCircle, Edit, Trash2 } from "lucide-react";
 import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import { userProfileSchema, validateAndSanitize, searchSchema } from "@/lib/validation";
+import { useAuth } from "@/contexts/AuthContext";
+import { z } from "zod";
 
 interface User {
   id: string;
@@ -35,23 +39,17 @@ interface UserManagementProps {
   loading: boolean;
 }
 
-interface UserFormData {
-  first_name: string;
-  last_name?: string;
-  phone_number?: string;
-  telegram_id?: string;
-  status: string;
-  subscription_plan: string;
-  is_premium: boolean;
-}
+type UserFormData = z.infer<typeof userProfileSchema>;
 
 export function UserManagement({ users, onRefresh, loading }: UserManagementProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const { toast } = useToast();
+  const { isAuthenticated } = useAuth();
 
   const form = useForm<UserFormData>({
+    resolver: zodResolver(userProfileSchema),
     defaultValues: {
       first_name: "",
       last_name: "",
@@ -63,27 +61,57 @@ export function UserManagement({ users, onRefresh, loading }: UserManagementProp
     },
   });
 
-  const filteredUsers = users.filter(user =>
-    `${user.first_name} ${user.last_name || ''}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.phone_number?.includes(searchTerm) ||
-    user.telegram_id?.toString().includes(searchTerm)
-  );
+  // Validate search input
+  const handleSearchChange = (value: string) => {
+    try {
+      const validated = searchSchema.parse({ query: value });
+      setSearchTerm(validated.query);
+    } catch (error) {
+      // Invalid search input, ignore
+      console.warn("Invalid search input");
+    }
+  };
+
+  const filteredUsers = users.filter(user => {
+    const searchLower = searchTerm.toLowerCase();
+    return `${user.first_name} ${user.last_name || ''}`.toLowerCase().includes(searchLower) ||
+           user.phone_number?.includes(searchTerm) ||
+           user.telegram_id?.toString().includes(searchTerm);
+  });
 
   const handleEdit = (user: User) => {
+    if (!isAuthenticated) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to edit users",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setEditingUser(user);
     form.reset({
       first_name: user.first_name,
       last_name: user.last_name || "",
       phone_number: user.phone_number || "",
       telegram_id: user.telegram_id?.toString() || "",
-      status: user.status,
-      subscription_plan: user.subscription_plan || "free",
+      status: user.status as "active" | "inactive" | "suspended",
+      subscription_plan: (user.subscription_plan || "free") as "free" | "premium" | "enterprise",
       is_premium: user.is_premium || false,
     });
     setIsDialogOpen(true);
   };
 
   const handleDelete = async (userId: string) => {
+    if (!isAuthenticated) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to delete users",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!confirm("Are you sure you want to delete this user?")) return;
 
     try {
@@ -111,15 +139,27 @@ export function UserManagement({ users, onRefresh, loading }: UserManagementProp
   };
 
   const onSubmit = async (data: UserFormData) => {
+    if (!isAuthenticated) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to manage users",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
+      // Validate and sanitize input data
+      const sanitizedData = validateAndSanitize(userProfileSchema, data);
+      
       const userData = {
-        first_name: data.first_name,
-        last_name: data.last_name || null,
-        phone_number: data.phone_number || null,
-        telegram_id: data.telegram_id ? parseInt(data.telegram_id) : null,
-        status: data.status,
-        subscription_plan: data.subscription_plan,
-        is_premium: data.is_premium,
+        first_name: sanitizedData.first_name,
+        last_name: sanitizedData.last_name || null,
+        phone_number: sanitizedData.phone_number || null,
+        telegram_id: sanitizedData.telegram_id ? parseInt(sanitizedData.telegram_id) : null,
+        status: sanitizedData.status,
+        subscription_plan: sanitizedData.subscription_plan,
+        is_premium: sanitizedData.is_premium,
       };
 
       if (editingUser) {
@@ -164,6 +204,15 @@ export function UserManagement({ users, onRefresh, loading }: UserManagementProp
   };
 
   const handleStatusChange = async (userId: string, newStatus: string) => {
+    if (!isAuthenticated) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to update user status",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('user_profiles')
@@ -221,7 +270,7 @@ export function UserManagement({ users, onRefresh, loading }: UserManagementProp
             }
           }}>
             <DialogTrigger asChild>
-              <Button>
+              <Button disabled={!isAuthenticated}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add User
               </Button>
@@ -353,7 +402,7 @@ export function UserManagement({ users, onRefresh, loading }: UserManagementProp
             <Input
               placeholder="Search users..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
               className="pl-9"
             />
           </div>
@@ -399,6 +448,7 @@ export function UserManagement({ users, onRefresh, loading }: UserManagementProp
                       <Select
                         value={user.status}
                         onValueChange={(value) => handleStatusChange(user.id, value)}
+                        disabled={!isAuthenticated}
                       >
                         <SelectTrigger className="w-32">
                           <SelectValue />
@@ -424,6 +474,7 @@ export function UserManagement({ users, onRefresh, loading }: UserManagementProp
                           size="sm"
                           variant="outline"
                           onClick={() => handleEdit(user)}
+                          disabled={!isAuthenticated}
                         >
                           <Edit className="h-3 w-3" />
                         </Button>
@@ -431,6 +482,7 @@ export function UserManagement({ users, onRefresh, loading }: UserManagementProp
                           size="sm"
                           variant="outline"
                           onClick={() => handleDelete(user.id)}
+                          disabled={!isAuthenticated}
                         >
                           <Trash2 className="h-3 w-3" />
                         </Button>

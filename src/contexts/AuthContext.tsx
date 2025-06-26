@@ -1,9 +1,9 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { authService, AuthTokens } from '@/lib/auth';
+import { secureAuthService, SecureAuthTokens } from '@/lib/secure-auth';
 
 interface AuthContextType {
-  tokens: AuthTokens | null;
+  tokens: SecureAuthTokens | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   login: () => Promise<void>;
@@ -14,7 +14,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [tokens, setTokens] = useState<AuthTokens | null>(null);
+  const [tokens, setTokens] = useState<SecureAuthTokens | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,9 +22,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setIsLoading(true);
       setError(null);
-      const newTokens = await authService.authenticate();
+      const newTokens = await secureAuthService.signInWithTelegram();
       setTokens(newTokens);
-      console.log('Authentication successful');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Authentication failed';
       setError(errorMessage);
@@ -35,7 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = () => {
-    authService.logout();
+    secureAuthService.logout();
     setTokens(null);
     setError(null);
   };
@@ -44,10 +43,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Initialize authentication on app start
     const initAuth = async () => {
       try {
-        // Check if we have stored tokens
-        const existingTokens = authService.getCurrentTokens();
+        const existingTokens = secureAuthService.getCurrentTokens();
         if (existingTokens) {
-          setTokens(existingTokens);
+          // Try to refresh the session to ensure it's still valid
+          const refreshedTokens = await secureAuthService.refreshSession();
+          setTokens(refreshedTokens || existingTokens);
         } else {
           // Attempt to authenticate
           await login();

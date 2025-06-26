@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Send, Bot, User, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { authService } from "@/lib/auth";
+import { useAuth } from "@/contexts/AuthContext";
+import { chatMessageSchema, validateAndSanitize, sanitizeHtml } from "@/lib/validation";
 
 interface Message {
   id: string;
@@ -23,6 +24,7 @@ interface Conversation {
   session_title: string;
   created_at: string;
   is_active: boolean;
+  user_id: string;
 }
 
 export function AiChat() {
@@ -33,6 +35,7 @@ export function AiChat() {
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const { isAuthenticated, tokens } = useAuth();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -43,24 +46,36 @@ export function AiChat() {
   }, [messages]);
 
   useEffect(() => {
-    fetchConversations();
-  }, []);
+    if (isAuthenticated) {
+      fetchConversations();
+    }
+  }, [isAuthenticated]);
 
   const fetchConversations = async () => {
+    if (!isAuthenticated || !tokens?.user_id) return;
+
     try {
       const { data, error } = await supabase
         .from('chat_conversations')
         .select('*')
+        .eq('user_id', tokens.user_id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       setConversations(data || []);
     } catch (error) {
       console.error('Error fetching conversations:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load conversations",
+        variant: "destructive",
+      });
     }
   };
 
   const fetchMessages = async (conversationId: string) => {
+    if (!isAuthenticated) return;
+
     try {
       const { data, error } = await supabase
         .from('chat_conversation_messages')
@@ -73,7 +88,7 @@ export function AiChat() {
       const typedMessages: Message[] = (data || []).map(msg => ({
         id: msg.id,
         role: msg.role as 'user' | 'assistant' | 'system',
-        content: msg.content,
+        content: sanitizeHtml(msg.content), // Sanitize content when displaying
         tokens_used: msg.tokens_used || 0,
         created_at: msg.created_at || new Date().toISOString()
       }));
@@ -81,16 +96,31 @@ export function AiChat() {
       setMessages(typedMessages);
     } catch (error) {
       console.error('Error fetching messages:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load messages",
+        variant: "destructive",
+      });
     }
   };
 
   const createNewConversation = async () => {
+    if (!isAuthenticated || !tokens?.user_id) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to start a conversation",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('chat_conversations')
         .insert([{
           session_title: 'Diamond Consultation',
-          is_active: true
+          is_active: true,
+          user_id: tokens.user_id
         }])
         .select()
         .single();
@@ -118,13 +148,19 @@ export function AiChat() {
   };
 
   const sendMessage = async () => {
-    if (!input.trim() || !activeConversation || isLoading) return;
-
-    const userMessage = input.trim();
-    setInput("");
-    setIsLoading(true);
+    if (!input.trim() || !activeConversation || isLoading || !isAuthenticated) return;
 
     try {
+      // Validate and sanitize the message
+      const validatedMessage = validateAndSanitize(chatMessageSchema, {
+        content: input.trim(),
+        role: 'user'
+      });
+
+      const userMessage = validatedMessage.content;
+      setInput("");
+      setIsLoading(true);
+
       // Add user message to database
       const { data: userMsgData, error: userMsgError } = await supabase
         .from('chat_conversation_messages')
@@ -143,14 +179,14 @@ export function AiChat() {
         const typedUserMessage: Message = {
           id: userMsgData.id,
           role: 'user',
-          content: userMsgData.content,
+          content: sanitizeHtml(userMsgData.content),
           tokens_used: userMsgData.tokens_used || 0,
           created_at: userMsgData.created_at || new Date().toISOString()
         };
         setMessages(prev => [...prev, typedUserMessage]);
 
-        // Simulate AI response (replace with actual FastAPI call later)
-        const aiResponse = `I understand you're asking about: "${userMessage}". As a diamond expert, I'd be happy to help with your diamond-related questions. This is a placeholder response that will be replaced with actual AI functionality.`;
+        // Simulate AI response (replace with actual AI service call later)
+        const aiResponse = `I understand you're asking about: "${sanitizeHtml(userMessage)}". As a diamond expert, I'd be happy to help with your diamond-related questions. This is a placeholder response that will be replaced with actual AI functionality.`;
         
         const { data: aiMsgData, error: aiMsgError } = await supabase
           .from('chat_conversation_messages')
@@ -169,29 +205,34 @@ export function AiChat() {
           const typedAiMessage: Message = {
             id: aiMsgData.id,
             role: 'assistant',
-            content: aiMsgData.content,
+            content: sanitizeHtml(aiMsgData.content),
             tokens_used: aiMsgData.tokens_used || 0,
             created_at: aiMsgData.created_at || new Date().toISOString()
           };
           setMessages(prev => [...prev, typedAiMessage]);
 
           // Track API usage
-          await supabase
-            .from('api_usage')
-            .insert([{
-              api_type: 'openai_chat',
-              tokens_used: 50,
-              cost: 0.001,
-              request_data: { message: userMessage },
-              response_data: { response: aiResponse }
-            }]);
+          if (tokens?.user_id) {
+            await supabase
+              .from('api_usage')
+              .insert([{
+                api_type: 'openai_chat',
+                tokens_used: 50,
+                cost: 0.001,
+                user_id: tokens.user_id,
+                telegram_id: null,
+                client_id: tokens.user_id,
+                request_data: { message: sanitizeHtml(userMessage) },
+                response_data: { response: sanitizeHtml(aiResponse) }
+              }]);
+          }
         }
       }
     } catch (error) {
       console.error('Error sending message:', error);
       toast({
         title: "Error",
-        description: "Failed to send message",
+        description: "Failed to send message. Please check your input.",
         variant: "destructive",
       });
     } finally {
@@ -205,6 +246,21 @@ export function AiChat() {
       sendMessage();
     }
   };
+
+  if (!isAuthenticated) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Diamond AI Assistant</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center h-[400px] text-muted-foreground">
+            Please log in to access the AI chat feature
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[600px]">
@@ -233,7 +289,7 @@ export function AiChat() {
                     : 'hover:bg-muted'
                 }`}
               >
-                <div className="font-medium text-sm">{conv.session_title}</div>
+                <div className="font-medium text-sm">{sanitizeHtml(conv.session_title)}</div>
                 <div className="text-xs opacity-70">
                   {new Date(conv.created_at).toLocaleDateString()}
                 </div>
@@ -277,7 +333,7 @@ export function AiChat() {
                           : 'bg-muted'
                       }`}
                     >
-                      <div className="text-sm">{message.content}</div>
+                      <div className="text-sm" dangerouslySetInnerHTML={{ __html: message.content }} />
                       {message.tokens_used && message.tokens_used > 0 && (
                         <Badge variant="outline" className="mt-2 text-xs">
                           {message.tokens_used} tokens
@@ -312,6 +368,7 @@ export function AiChat() {
                 placeholder="Ask about diamonds, inventory, pricing..."
                 className="flex-1 min-h-[80px] resize-none"
                 disabled={isLoading}
+                maxLength={4000}
               />
               <Button
                 onClick={sendMessage}
