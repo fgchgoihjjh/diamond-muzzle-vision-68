@@ -6,7 +6,7 @@ import { Upload, File, CheckCircle, XCircle, RefreshCw } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "@/components/ui/use-toast";
-import { useDiamondsApi } from "@/hooks/useDiamondsApi";
+import { uploadDiamondCSV } from "@/lib/diamond-api";
 
 interface UploadResult {
   totalItems: number;
@@ -22,7 +22,6 @@ export function UploadForm() {
   const [result, setResult] = useState<UploadResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { uploadCSV } = useDiamondsApi();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -56,21 +55,30 @@ export function UploadForm() {
     const cleanup = simulateProgress();
 
     try {
-      const response = await uploadCSV(selectedFile);
+      const response = await uploadDiamondCSV(selectedFile);
       
       setProgress(100);
       
-      setResult({
-        totalItems: response.totalItems || response.total_items || 0,
-        matchedPairs: response.matchedPairs || response.matched_pairs || 0,
-        errors: response.errors || [],
-        message: response.message,
-      });
-      
-      toast({
-        title: "Upload successful",
-        description: `Processed ${response.totalItems || response.total_items || 0} diamonds successfully.`,
-      });
+      if (response.error) {
+        setError(response.error);
+        toast({
+          variant: "destructive",
+          title: "Upload failed",
+          description: response.error,
+        });
+      } else if (response.data) {
+        setResult({
+          totalItems: response.data.totalItems || response.data.total_items || 0,
+          matchedPairs: response.data.matchedPairs || response.data.matched_pairs || 0,
+          errors: response.data.errors || [],
+          message: response.data.message,
+        });
+        
+        toast({
+          title: "Upload successful",
+          description: `Processed ${response.data.totalItems || response.data.total_items || 0} diamonds successfully.`,
+        });
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
       setError(errorMessage);

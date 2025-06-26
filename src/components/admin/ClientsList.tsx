@@ -3,11 +3,12 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Phone, MessageCircle } from "lucide-react";
+import { Plus, Search, Phone, Mail, MessageCircle } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -66,11 +67,8 @@ export function ClientsList({ users, onRefresh, loading }: ClientsListProps) {
   const onSubmit = async (data: UserFormData) => {
     try {
       const userData = {
-        first_name: data.first_name,
-        last_name: data.last_name || null,
-        phone_number: data.phone_number || null,
+        ...data,
         telegram_id: data.telegram_id ? parseInt(data.telegram_id) : null,
-        status: data.status,
       };
 
       const { error } = await supabase
