@@ -55,15 +55,15 @@ export default function AdminDashboard() {
         id: profile.id,
         email: '',
         first_name: profile.first_name,
-        last_name: profile.last_name,
-        phone_number: profile.phone_number,
-        telegram_id: profile.telegram_id,
+        last_name: profile.last_name || undefined,
+        phone_number: profile.phone_number || undefined,
+        telegram_id: profile.telegram_id || undefined,
         status: profile.status || 'active',
-        created_at: profile.created_at,
-        updated_at: profile.updated_at,
-        last_active: profile.last_login,
-        is_premium: profile.is_premium,
-        subscription_plan: profile.subscription_plan
+        created_at: profile.created_at || new Date().toISOString(),
+        updated_at: profile.updated_at || undefined,
+        last_active: profile.last_login || undefined,
+        is_premium: profile.is_premium || false,
+        subscription_plan: profile.subscription_plan || 'free'
       }));
 
       setUsers(transformedUsers);
@@ -86,7 +86,18 @@ export default function AdminDashboard() {
         .limit(100);
 
       if (error) throw error;
-      setApiUsage(data || []);
+      
+      const transformedApiUsage: ApiUsage[] = (data || []).map(usage => ({
+        id: usage.id,
+        client_id: usage.client_id || undefined,
+        telegram_id: usage.telegram_id || undefined,
+        api_type: usage.api_type,
+        tokens_used: usage.tokens_used || 0,
+        cost: Number(usage.cost) || 0,
+        created_at: usage.created_at || new Date().toISOString()
+      }));
+      
+      setApiUsage(transformedApiUsage);
     } catch (error) {
       console.error('Error fetching API usage:', error);
       toast({

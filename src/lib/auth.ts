@@ -28,7 +28,7 @@ export interface AuthTokens {
 
 const FASTAPI_BASE_URL = "https://api.mazalbot.com/api/v1";
 const AUTH_STORAGE_KEY = "mazalbot_auth_tokens";
-const BACKEND_ACCESS_TOKEN = "your-backend-access-token"; // This should match your FastAPI BACKEND_ACCESS_TOKEN
+const BACKEND_ACCESS_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VySWQiLCJleHAiOjE2ODk2MDAwMDAsImlhdCI6MTY4OTU5NjQwMH0.kWzUkeMTF4LZbU9P5yRmsXrXhWfPlUPukGqI8Nq1rLo";
 
 export class AuthService {
   private static instance: AuthService;
@@ -85,20 +85,14 @@ export class AuthService {
     return null;
   }
 
-  private isRunningInTelegram(): boolean {
-    return !!(window.Telegram?.WebApp);
-  }
-
   async authenticate(): Promise<AuthTokens> {
     console.log("Starting authentication process...");
     
-    // Extract Telegram user ID
     const telegramUserId = this.getTelegramUserId();
     const userId = telegramUserId || "development_user";
     
     console.log("Using user ID:", userId);
     
-    // Create tokens with BACKEND_ACCESS_TOKEN
     const tokens: AuthTokens = {
       access_token: BACKEND_ACCESS_TOKEN,
       user_id: userId
@@ -110,6 +104,14 @@ export class AuthService {
   }
 
   async getAuthHeaders(): Promise<HeadersInit> {
+    const tokens = await this.authenticate();
+    return {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${tokens.access_token}`,
+    };
+  }
+
+  async getFastApiHeaders(): Promise<HeadersInit> {
     const tokens = await this.authenticate();
     return {
       "Content-Type": "application/json",
@@ -132,6 +134,10 @@ export class AuthService {
 
   isAuthenticated(): boolean {
     return !!(this.tokens?.access_token);
+  }
+
+  getFastApiBaseUrl(): string {
+    return FASTAPI_BASE_URL;
   }
 }
 

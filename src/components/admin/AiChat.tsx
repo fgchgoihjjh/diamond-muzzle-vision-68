@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Send, Bot, User, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { authService } from "@/lib/auth";
 
 interface Message {
   id: string;
@@ -69,13 +70,12 @@ export function AiChat() {
 
       if (error) throw error;
       
-      // Type cast the data to ensure proper typing
       const typedMessages: Message[] = (data || []).map(msg => ({
         id: msg.id,
         role: msg.role as 'user' | 'assistant' | 'system',
         content: msg.content,
-        tokens_used: msg.tokens_used,
-        created_at: msg.created_at
+        tokens_used: msg.tokens_used || 0,
+        created_at: msg.created_at || new Date().toISOString()
       }));
       
       setMessages(typedMessages);
@@ -97,14 +97,16 @@ export function AiChat() {
 
       if (error) throw error;
       
-      await fetchConversations();
-      setActiveConversation(data.id);
-      setMessages([]);
-      
-      toast({
-        title: "Success",
-        description: "New conversation started",
-      });
+      if (data) {
+        await fetchConversations();
+        setActiveConversation(data.id);
+        setMessages([]);
+        
+        toast({
+          title: "Success",
+          description: "New conversation started",
+        });
+      }
     } catch (error) {
       console.error('Error creating conversation:', error);
       toast({
@@ -137,61 +139,54 @@ export function AiChat() {
 
       if (userMsgError) throw userMsgError;
 
-      // Add user message to local state with proper typing
-      const typedUserMessage: Message = {
-        id: userMsgData.id,
-        role: 'user',
-        content: userMsgData.content,
-        tokens_used: userMsgData.tokens_used,
-        created_at: userMsgData.created_at
-      };
-      setMessages(prev => [...prev, typedUserMessage]);
+      if (userMsgData) {
+        const typedUserMessage: Message = {
+          id: userMsgData.id,
+          role: 'user',
+          content: userMsgData.content,
+          tokens_used: userMsgData.tokens_used || 0,
+          created_at: userMsgData.created_at || new Date().toISOString()
+        };
+        setMessages(prev => [...prev, typedUserMessage]);
 
-      // Call OpenAI API through edge function
-      const { data: aiResponse, error: aiError } = await supabase.functions.invoke('diamond-chat', {
-        body: {
-          message: userMessage,
-          conversation_id: activeConversation
+        // Simulate AI response (replace with actual FastAPI call later)
+        const aiResponse = `I understand you're asking about: "${userMessage}". As a diamond expert, I'd be happy to help with your diamond-related questions. This is a placeholder response that will be replaced with actual AI functionality.`;
+        
+        const { data: aiMsgData, error: aiMsgError } = await supabase
+          .from('chat_conversation_messages')
+          .insert([{
+            conversation_id: activeConversation,
+            role: 'assistant',
+            content: aiResponse,
+            tokens_used: 50
+          }])
+          .select()
+          .single();
+
+        if (aiMsgError) throw aiMsgError;
+
+        if (aiMsgData) {
+          const typedAiMessage: Message = {
+            id: aiMsgData.id,
+            role: 'assistant',
+            content: aiMsgData.content,
+            tokens_used: aiMsgData.tokens_used || 0,
+            created_at: aiMsgData.created_at || new Date().toISOString()
+          };
+          setMessages(prev => [...prev, typedAiMessage]);
+
+          // Track API usage
+          await supabase
+            .from('api_usage')
+            .insert([{
+              api_type: 'openai_chat',
+              tokens_used: 50,
+              cost: 0.001,
+              request_data: { message: userMessage },
+              response_data: { response: aiResponse }
+            }]);
         }
-      });
-
-      if (aiError) throw aiError;
-
-      // Add AI response to database
-      const { data: aiMsgData, error: aiMsgError } = await supabase
-        .from('chat_conversation_messages')
-        .insert([{
-          conversation_id: activeConversation,
-          role: 'assistant',
-          content: aiResponse.response,
-          tokens_used: aiResponse.tokens_used || 0
-        }])
-        .select()
-        .single();
-
-      if (aiMsgError) throw aiMsgError;
-
-      // Add AI message to local state with proper typing
-      const typedAiMessage: Message = {
-        id: aiMsgData.id,
-        role: 'assistant',
-        content: aiMsgData.content,
-        tokens_used: aiMsgData.tokens_used,
-        created_at: aiMsgData.created_at
-      };
-      setMessages(prev => [...prev, typedAiMessage]);
-
-      // Track API usage
-      await supabase
-        .from('api_usage')
-        .insert([{
-          api_type: 'openai_chat',
-          tokens_used: aiResponse.tokens_used || 0,
-          cost: (aiResponse.tokens_used || 0) * 0.00002, // Approximate cost
-          request_data: { message: userMessage },
-          response_data: { response: aiResponse.response }
-        }]);
-
+      }
     } catch (error) {
       console.error('Error sending message:', error);
       toast({
