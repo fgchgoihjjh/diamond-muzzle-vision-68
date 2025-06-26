@@ -77,6 +77,13 @@ export class AuthService {
     return null;
   }
 
+  private getTelegramUserId(): string | null {
+    if (window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {
+      return window.Telegram.WebApp.initDataUnsafe.user.id.toString();
+    }
+    return null;
+  }
+
   private isRunningInTelegram(): boolean {
     return !!(window.Telegram?.WebApp);
   }
@@ -86,7 +93,7 @@ export class AuthService {
     
     // If we have valid tokens, return them
     if (this.tokens?.access_token) {
-      console.log("Using existing tokens");
+      console.log("Using existing tokens for user:", this.tokens.user_id);
       return this.tokens;
     }
 
@@ -111,7 +118,7 @@ export class AuthService {
 
           const tokens: AuthTokens = await response.json();
           this.storeTokens(tokens);
-          console.log("Successfully authenticated with Telegram initData");
+          console.log("Successfully authenticated with Telegram initData for user:", tokens.user_id);
           return tokens;
         } catch (error) {
           console.error("Telegram authentication failed:", error);
@@ -123,9 +130,16 @@ export class AuthService {
     } else {
       // Fallback for development/testing outside Telegram
       console.log("Not running in Telegram, using fallback authentication");
+      
+      // Try to get user ID from Telegram data if available, otherwise use development user
+      const telegramUserId = this.getTelegramUserId();
+      const userId = telegramUserId || "development_user";
+      
+      console.log("Using fallback authentication for user ID:", userId);
+      
       const fallbackTokens: AuthTokens = {
         access_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VySWQiLCJleHAiOjE2ODk2MDAwMDAsImlhdCI6MTY4OTU5NjQwMH0.kWzUkeMTF4LZbU9P5yRmsXrXhWfPlUPukGqI8Nq1rLo",
-        user_id: "fallback_user"
+        user_id: userId
       };
       this.storeTokens(fallbackTokens);
       return fallbackTokens;
