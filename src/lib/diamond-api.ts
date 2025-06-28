@@ -1,3 +1,4 @@
+
 import { Diamond } from "@/types/diamond";
 import { authService } from "./auth";
 
@@ -46,17 +47,11 @@ async function handleApiCall<T>(apiCall: () => Promise<Response>): Promise<FastA
 }
 
 export async function fetchDiamonds(): Promise<FastApiResponse<Diamond[]>> {
-  const userId = authService.getCurrentUserId();
-  if (!userId) {
-    return { error: "User not authenticated" };
-  }
-
   return handleApiCall<Diamond[]>(async () => {
     const headers = await authService.getAuthHeaders();
-    console.log("Fetching diamonds for user:", userId);
+    console.log("Fetching all diamonds from backend");
     
-    // GET request - user_id as query parameter
-    const response = await fetch(`${FASTAPI_BASE_URL}/get_all_stones?user_id=${userId}`, {
+    const response = await fetch(`${FASTAPI_BASE_URL}/get_all_stones`, {
       method: "GET",
       headers,
     });
@@ -91,18 +86,11 @@ export async function fetchDiamonds(): Promise<FastApiResponse<Diamond[]>> {
 }
 
 export async function createDiamond(diamondData: Partial<Diamond>): Promise<FastApiResponse<Diamond>> {
-  const userId = authService.getCurrentUserId();
-  if (!userId) {
-    return { error: "User not authenticated" };
-  }
-
   return handleApiCall<Diamond>(async () => {
     const headers = await authService.getAuthHeaders();
-    console.log("Creating diamond for user:", userId);
+    console.log("Creating new diamond via POST /diamonds");
 
-    // POST request - user_id in request body
     const backendData = {
-      user_id: userId,
       stock: diamondData.stock_number,
       shape: diamondData.shape,
       weight: diamondData.carat,
@@ -125,18 +113,11 @@ export async function createDiamond(diamondData: Partial<Diamond>): Promise<Fast
 }
 
 export async function updateDiamond(id: string, diamondData: Partial<Diamond>): Promise<FastApiResponse<Diamond>> {
-  const userId = authService.getCurrentUserId();
-  if (!userId) {
-    return { error: "User not authenticated" };
-  }
-
   return handleApiCall<Diamond>(async () => {
     const headers = await authService.getAuthHeaders();
-    console.log("Updating diamond:", id, "for user:", userId);
+    console.log("Updating diamond via PUT /diamonds/" + id);
 
-    // PUT request - user_id in request body
     const backendData = {
-      user_id: userId,
       stock: diamondData.stock_number,
       shape: diamondData.shape,
       weight: diamondData.carat,
@@ -148,7 +129,7 @@ export async function updateDiamond(id: string, diamondData: Partial<Diamond>): 
       certificate_number: diamondData.certificate_number,
     };
 
-    const response = await fetch(`${FASTAPI_BASE_URL}/update_stone/${id}`, {
+    const response = await fetch(`${FASTAPI_BASE_URL}/diamonds/${id}`, {
       method: "PUT",
       headers,
       body: JSON.stringify(backendData),
@@ -159,17 +140,11 @@ export async function updateDiamond(id: string, diamondData: Partial<Diamond>): 
 }
 
 export async function deleteDiamond(id: string): Promise<FastApiResponse<void>> {
-  const userId = authService.getCurrentUserId();
-  if (!userId) {
-    return { error: "User not authenticated" };
-  }
-
   return handleApiCall<void>(async () => {
     const headers = await authService.getAuthHeaders();
-    console.log("Deleting diamond with ID:", id, "for user:", userId);
+    console.log("Deleting diamond with ID:", id);
 
-    // DELETE request - user_id as query parameter
-    const response = await fetch(`${FASTAPI_BASE_URL}/delete_stone/${id}?user_id=${userId}`, {
+    const response = await fetch(`${FASTAPI_BASE_URL}/delete_stone/${id}`, {
       method: "DELETE",
       headers,
     });
@@ -179,21 +154,15 @@ export async function deleteDiamond(id: string): Promise<FastApiResponse<void>> 
 }
 
 export async function markDiamondAsSold(id: string): Promise<FastApiResponse<Diamond>> {
-  const userId = authService.getCurrentUserId();
-  if (!userId) {
-    return { error: "User not authenticated" };
-  }
-
   return handleApiCall<Diamond>(async () => {
     const headers = await authService.getAuthHeaders();
-    console.log("Marking diamond as sold:", id, "for user:", userId);
+    console.log("Marking diamond as sold:", id);
 
     const response = await fetch(`${FASTAPI_BASE_URL}/sold`, {
       method: "POST",
       headers,
       body: JSON.stringify({ 
-        stone_id: id,
-        user_id: userId 
+        stone_id: id
       }),
     });
 
@@ -202,11 +171,6 @@ export async function markDiamondAsSold(id: string): Promise<FastApiResponse<Dia
 }
 
 export async function uploadDiamondCSV(file: File): Promise<FastApiResponse<any>> {
-  const userId = authService.getCurrentUserId();
-  if (!userId) {
-    return { error: "User not authenticated" };
-  }
-
   return handleApiCall<any>(async () => {
     const headers = await authService.getAuthHeaders();
     // Remove Content-Type to let browser set it for FormData
@@ -215,9 +179,8 @@ export async function uploadDiamondCSV(file: File): Promise<FastApiResponse<any>
     
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("user_id", userId);
 
-    console.log("Uploading CSV for user:", userId);
+    console.log("Uploading CSV file");
 
     const response = await fetch(`${FASTAPI_BASE_URL}/upload_inventory`, {
       method: "POST",

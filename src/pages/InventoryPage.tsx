@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { InventoryTable, Diamond } from "@/components/inventory/InventoryTable";
 import { InventoryFilters } from "@/components/inventory/InventoryFilters";
+import { AddDiamondDialog } from "@/components/inventory/AddDiamondDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Search, FileText, RefreshCw } from "lucide-react";
@@ -15,7 +16,7 @@ import {
   PaginationNext, 
   PaginationPrevious 
 } from "@/components/ui/pagination";
-import { fetchDiamonds, updateDiamond, deleteDiamond, markDiamondAsSold } from "@/lib/diamond-api";
+import { fetchDiamonds, createDiamond, updateDiamond, deleteDiamond, markDiamondAsSold } from "@/lib/diamond-api";
 
 export default function InventoryPage() {
   const { toast } = useToast();
@@ -27,13 +28,14 @@ export default function InventoryPage() {
   const [diamonds, setDiamonds] = useState<Diamond[]>([]);
   const [filteredDiamonds, setFilteredDiamonds] = useState<Diamond[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
   
   const fetchInventoryData = async () => {
     setLoading(true);
     setError(null);
     
     try {
-      console.log("Fetching inventory data from backend...");
+      console.log("Fetching inventory data from FastAPI backend...");
       const response = await fetchDiamonds();
       
       if (response.error) {
@@ -98,6 +100,37 @@ export default function InventoryPage() {
     setFilteredDiamonds(filtered);
     setCurrentPage(1); // Reset to first page when filters change
   }, [searchQuery, filters, diamonds]);
+
+  const handleAdd = async (diamondData: Partial<Diamond>) => {
+    try {
+      console.log("Adding new diamond:", diamondData);
+      const response = await createDiamond(diamondData);
+      
+      if (response.error) {
+        toast({
+          variant: "destructive",
+          title: "Add Failed",
+          description: response.error,
+        });
+        return;
+      }
+      
+      // Refresh the inventory to get the latest data
+      await fetchInventoryData();
+      
+      toast({
+        title: "Diamond added",
+        description: `Stock #${diamondData.stock_number} has been added successfully.`,
+      });
+    } catch (error) {
+      console.error("Error adding diamond:", error);
+      toast({
+        variant: "destructive",
+        title: "Add Failed",
+        description: "Failed to add diamond. Please try again.",
+      });
+    }
+  };
   
   const handleEdit = async (id: string, data: Partial<Diamond>) => {
     try {
@@ -241,7 +274,7 @@ export default function InventoryPage() {
           <div>
             <h1 className="text-3xl font-bold">Diamond Inventory</h1>
             <p className="text-muted-foreground">
-              Manage your diamond inventory ({filteredDiamonds.length} diamonds loaded from backend)
+              Manage your diamond inventory ({filteredDiamonds.length} diamonds loaded from FastAPI backend)
             </p>
           </div>
           
@@ -254,7 +287,7 @@ export default function InventoryPage() {
               <FileText className="mr-2 h-4 w-4" />
               Export Stock#
             </Button>
-            <Button className="flex-1 sm:flex-none">
+            <Button onClick={() => setAddDialogOpen(true)} className="flex-1 sm:flex-none">
               <Plus className="mr-2 h-4 w-4" />
               Add Diamond
             </Button>
@@ -281,7 +314,7 @@ export default function InventoryPage() {
               <strong>Backend Connection Error:</strong> {error}
             </p>
             <p className="text-red-600 text-xs mt-1">
-              Make sure your FastAPI backend at https://api.mazalbot.com is running and accessible.
+              Make sure your FastAPI backend at https://mazalbot.me/api/v1 is running and accessible.
             </p>
           </div>
         )}
@@ -337,6 +370,12 @@ export default function InventoryPage() {
             </PaginationContent>
           </Pagination>
         )}
+
+        <AddDiamondDialog 
+          open={addDialogOpen} 
+          onOpenChange={setAddDialogOpen}
+          onAdd={handleAdd}
+        />
       </div>
     </Layout>
   );

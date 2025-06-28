@@ -35,8 +35,8 @@ interface TelegramVerifyResponse {
 const FASTAPI_BASE_URL = "https://mazalbot.me/api/v1";
 const AUTH_STORAGE_KEY = "mazalbot_auth_tokens";
 
-// Development/testing token provided by user
-const DEVELOPMENT_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VySWQiLCJleHAiOjE2ODk2MDAwMDAsImlhdCI6MTY4OTU5NjQwMH0.kWzUkeMTF4LZbU9P5yRmsXrXhWfPlUPukGqI8Nq1rLo";
+// Set your actual Bearer token here
+const BEARER_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VySWQiLCJleHAiOjE2ODk2MDAwMDAsImlhdCI6MTY4OTU5NjQwMH0.kWzUkeMTF4LZbU9P5yRmsXrXhWfPlUPukGqI8Nq1rLo";
 
 export class AuthService {
   private static instance: AuthService;
@@ -110,56 +110,18 @@ export class AuthService {
   }
 
   async verifyTelegramAuth(): Promise<AuthTokens> {
-    console.log("Starting Telegram authentication verification...");
+    console.log("Using direct Bearer token for authentication...");
     
-    const initData = this.getTelegramInitData();
-    if (!initData) {
-      // Development mode fallback with user-provided token
-      if (!this.isRunningInTelegram()) {
-        console.log("Development mode: using provided API token");
-        const fallbackTokens: AuthTokens = {
-          access_token: DEVELOPMENT_TOKEN,
-          user_id: "development_user",
-          expires_at: Math.floor(Date.now() / 1000) + (24 * 60 * 60) // 24 hours
-        };
-        this.storeTokens(fallbackTokens);
-        return fallbackTokens;
-      }
-      throw new Error("No Telegram initData available");
-    }
-
-    try {
-      const response = await fetch(`${FASTAPI_BASE_URL}/auth`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          init_data: initData
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Authentication failed: ${response.status} - ${errorText}`);
-      }
-
-      const data: TelegramVerifyResponse = await response.json();
-      
-      const tokens: AuthTokens = {
-        access_token: data.access_token,
-        user_id: data.user_id,
-        expires_at: Math.floor(Date.now() / 1000) + data.expires_in
-      };
-
-      this.storeTokens(tokens);
-      console.log("Telegram authentication successful for user:", data.user_id);
-      return tokens;
-
-    } catch (error) {
-      console.error("Telegram verification failed:", error);
-      throw error;
-    }
+    // Use the direct Bearer token provided
+    const fallbackTokens: AuthTokens = {
+      access_token: BEARER_TOKEN,
+      user_id: "authenticated_user",
+      expires_at: Math.floor(Date.now() / 1000) + (24 * 60 * 60) // 24 hours
+    };
+    
+    this.storeTokens(fallbackTokens);
+    console.log("Authentication successful with Bearer token");
+    return fallbackTokens;
   }
 
   async authenticate(): Promise<AuthTokens> {
