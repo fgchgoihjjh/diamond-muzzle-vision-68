@@ -1,4 +1,3 @@
-
 interface TelegramWebApp {
   initData: string;
   initDataUnsafe: {
@@ -35,6 +34,9 @@ interface TelegramVerifyResponse {
 
 const FASTAPI_BASE_URL = "https://api.mazalbot.com/api/v1";
 const AUTH_STORAGE_KEY = "mazalbot_auth_tokens";
+
+// Development/testing token provided by user
+const DEVELOPMENT_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VySWQiLCJleHAiOjE2ODk2MDAwMDAsImlhdCI6MTY4OTU5NjQwMH0.kWzUkeMTF4LZbU9P5yRmsXrXhWfPlUPukGqI8Nq1rLo";
 
 export class AuthService {
   private static instance: AuthService;
@@ -112,11 +114,11 @@ export class AuthService {
     
     const initData = this.getTelegramInitData();
     if (!initData) {
-      // Development mode fallback
+      // Development mode fallback with user-provided token
       if (!this.isRunningInTelegram()) {
-        console.log("Development mode: using fallback authentication");
+        console.log("Development mode: using provided API token");
         const fallbackTokens: AuthTokens = {
-          access_token: "dev_token_" + Date.now(),
+          access_token: DEVELOPMENT_TOKEN,
           user_id: "development_user",
           expires_at: Math.floor(Date.now() / 1000) + (24 * 60 * 60) // 24 hours
         };
