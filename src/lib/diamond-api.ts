@@ -1,7 +1,7 @@
 import { Diamond } from "@/types/diamond";
 import { authService } from "./auth";
 
-const FASTAPI_BASE_URL = "https://api.mazalbot.com/api/v1";
+const FASTAPI_BASE_URL = "https://mazalbot.me/api/v1";
 
 interface FastApiResponse<T> {
   data?: T;

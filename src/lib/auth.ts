@@ -32,7 +32,7 @@ interface TelegramVerifyResponse {
   expires_in: number; // seconds from now
 }
 
-const FASTAPI_BASE_URL = "https://api.mazalbot.com/api/v1";
+const FASTAPI_BASE_URL = "https://mazalbot.me/api/v1";
 const AUTH_STORAGE_KEY = "mazalbot_auth_tokens";
 
 // Development/testing token provided by user
