@@ -47,7 +47,7 @@ export function Sidebar() {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   const routes = [
-    { path: "/", label: "Dashboard", icon: BarChart },
+    { path: "/dashboard", label: "Dashboard", icon: BarChart },
     { path: "/inventory", label: "Inventory", icon: Database },
     { path: "/upload", label: "Upload", icon: Upload },
     { path: "/queries", label: "Client Queries", icon: MessageSquare },
