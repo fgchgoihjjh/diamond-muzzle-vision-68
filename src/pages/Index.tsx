@@ -2,11 +2,41 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, ArrowRight, Diamond, Database, Upload } from "lucide-react";
+import { Loader2, ArrowRight, Diamond, Database, Upload, TestTube } from "lucide-react";
 import { Link } from "react-router-dom";
+import { ApiTester } from "@/lib/api-tester";
+import { useToast } from "@/components/ui/use-toast";
 
 const Index = () => {
   const { isAuthenticated, isLoading, login, error, tokens } = useAuth();
+  const { toast } = useToast();
+
+  const handleTestApis = async () => {
+    try {
+      toast({
+        title: "Testing APIs",
+        description: "Running comprehensive API tests... Check console for details.",
+      });
+
+      const results = await ApiTester.testAllEndpoints();
+      
+      const passed = results.filter(r => r.success).length;
+      const total = results.length;
+      
+      toast({
+        title: "API Tests Complete",
+        description: `${passed}/${total} endpoints passed. Check console for detailed results.`,
+        variant: passed === total ? "default" : "destructive",
+      });
+    } catch (error) {
+      console.error("API testing failed:", error);
+      toast({
+        title: "API Testing Failed",
+        description: "Failed to run API tests. Check console for details.",
+        variant: "destructive",
+      });
+    }
+  };
 
   if (isLoading) {
     return (
@@ -53,6 +83,10 @@ const Index = () => {
               <p className="text-sm text-gray-500">
                 Your session is secure and ready for diamond management.
               </p>
+              <Button onClick={handleTestApis} variant="outline" className="mt-4">
+                <TestTube className="mr-2 h-4 w-4" />
+                Test All APIs
+              </Button>
             </CardContent>
           </Card>
 
