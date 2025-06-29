@@ -90,11 +90,14 @@ export class ApiTester {
       const headers = await authService.getAuthHeaders();
       console.log("Auth headers:", headers);
 
+      // Type assertion to access Authorization property safely
+      const authHeader = (headers as Record<string, string>).Authorization;
+
       return {
         endpoint: "Auth Headers",
         method: "CHECK",
-        success: !!headers.Authorization,
-        data: { hasAuthHeader: !!headers.Authorization },
+        success: !!authHeader,
+        data: { hasAuthHeader: !!authHeader },
       };
     } catch (error) {
       return {
@@ -325,7 +328,7 @@ export class ApiTester {
 
   private static printTestSummary(results: ApiTestResult[]): void {
     console.log("\n🔍 API Test Results Summary:");
-    console.log("=" * 50);
+    console.log("=".repeat(50));
     
     const passed = results.filter(r => r.success).length;
     const failed = results.filter(r => !r.success).length;
@@ -344,6 +347,6 @@ export class ApiTester {
     });
     
     console.log(`\nSummary: ${passed} passed, ${failed} failed`);
-    console.log("=" * 50);
+    console.log("=".repeat(50));
   }
 }
