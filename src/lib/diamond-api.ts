@@ -144,7 +144,8 @@ export async function deleteDiamond(id: string): Promise<FastApiResponse<void>> 
     const headers = await authService.getAuthHeaders();
     console.log("Deleting diamond with ID:", id);
 
-    const response = await fetch(`${FASTAPI_BASE_URL}/delete_stone/${id}`, {
+    // Based on OpenAPI spec, the DELETE endpoint uses a query parameter for diamond_id
+    const response = await fetch(`${FASTAPI_BASE_URL}/delete_stone/${id}?diamond_id=${id}`, {
       method: "DELETE",
       headers,
     });

@@ -131,7 +131,7 @@ const Index = () => {
           Get Started
         </Button>
       </div>
-    );
+    </div>
   );
 };
 
