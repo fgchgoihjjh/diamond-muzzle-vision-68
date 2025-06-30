@@ -25,7 +25,20 @@ async function handleApiCall<T>(apiCall: () => Promise<Response>): Promise<FastA
     if (!response.ok) {
       const errorText = await response.text();
       console.error("API error response:", errorText);
-      throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
+      
+      // Provide more specific error messages
+      let userFriendlyError = `Server error (${response.status})`;
+      if (response.status === 403) {
+        userFriendlyError = "Access denied. Please check your permissions.";
+      } else if (response.status === 404) {
+        userFriendlyError = "Resource not found.";
+      } else if (response.status === 422) {
+        userFriendlyError = "Invalid data provided.";
+      } else if (response.status >= 500) {
+        userFriendlyError = "Server is temporarily unavailable. Please try again later.";
+      }
+      
+      throw new Error(userFriendlyError);
     }
 
     const data = await response.json();
@@ -36,7 +49,7 @@ async function handleApiCall<T>(apiCall: () => Promise<Response>): Promise<FastA
     
     if (error instanceof TypeError && error.message === "Failed to fetch") {
       return { 
-        error: "Unable to connect to backend server. Please ensure your FastAPI backend is running and CORS is configured properly." 
+        error: "Unable to connect to the server. Please check your internet connection and try again." 
       };
     }
     
@@ -44,6 +57,40 @@ async function handleApiCall<T>(apiCall: () => Promise<Response>): Promise<FastA
       error: error instanceof Error ? error.message : "API call failed" 
     };
   }
+}
+
+// Add input validation and sanitization
+function validateDiamondData(data: Partial<Diamond>): string[] {
+  const errors: string[] = [];
+  
+  if (data.stock_number && !/^[A-Za-z0-9_-]+$/.test(data.stock_number)) {
+    errors.push("Stock number contains invalid characters");
+  }
+  
+  if (data.carat && (data.carat <= 0 || data.carat > 100)) {
+    errors.push("Carat weight must be between 0 and 100");
+  }
+  
+  if (data.price && (data.price < 0 || data.price > 10000000)) {
+    errors.push("Price must be between 0 and 10,000,000");
+  }
+  
+  const validShapes = ["Round", "Princess", "Emerald", "Asscher", "Marquise", "Oval", "Radiant", "Pear", "Heart", "Cushion"];
+  if (data.shape && !validShapes.includes(data.shape)) {
+    errors.push("Invalid diamond shape");
+  }
+  
+  const validColors = ["D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N"];
+  if (data.color && !validColors.includes(data.color)) {
+    errors.push("Invalid color grade");
+  }
+  
+  const validClarities = ["FL", "IF", "VVS1", "VVS2", "VS1", "VS2", "SI1", "SI2", "I1", "I2", "I3"];
+  if (data.clarity && !validClarities.includes(data.clarity)) {
+    errors.push("Invalid clarity grade");
+  }
+  
+  return errors;
 }
 
 export async function fetchDiamonds(): Promise<FastApiResponse<Diamond[]>> {
@@ -86,20 +133,27 @@ export async function fetchDiamonds(): Promise<FastApiResponse<Diamond[]>> {
 }
 
 export async function createDiamond(diamondData: Partial<Diamond>): Promise<FastApiResponse<Diamond>> {
+  // Validate input data
+  const validationErrors = validateDiamondData(diamondData);
+  if (validationErrors.length > 0) {
+    return { error: `Validation failed: ${validationErrors.join(", ")}` };
+  }
+
   return handleApiCall<Diamond>(async () => {
     const headers = await authService.getAuthHeaders();
     console.log("Creating new diamond via POST /diamonds");
 
+    // Sanitize data before sending
     const backendData = {
-      stock: diamondData.stock_number,
+      stock: diamondData.stock_number?.trim(),
       shape: diamondData.shape,
       weight: diamondData.carat,
       color: diamondData.color,
       clarity: diamondData.clarity,
       cut: diamondData.cut,
       price_per_carat: diamondData.price,
-      lab: diamondData.lab,
-      certificate_number: diamondData.certificate_number,
+      lab: diamondData.lab?.trim(),
+      certificate_number: diamondData.certificate_number?.trim(),
     };
 
     const response = await fetch(`${FASTAPI_BASE_URL}/diamonds`, {
@@ -113,20 +167,27 @@ export async function createDiamond(diamondData: Partial<Diamond>): Promise<Fast
 }
 
 export async function updateDiamond(id: string, diamondData: Partial<Diamond>): Promise<FastApiResponse<Diamond>> {
+  // Validate input data
+  const validationErrors = validateDiamondData(diamondData);
+  if (validationErrors.length > 0) {
+    return { error: `Validation failed: ${validationErrors.join(", ")}` };
+  }
+
   return handleApiCall<Diamond>(async () => {
     const headers = await authService.getAuthHeaders();
     console.log("Updating diamond via PUT /diamonds/" + id);
 
+    // Sanitize data before sending
     const backendData = {
-      stock: diamondData.stock_number,
+      stock: diamondData.stock_number?.trim(),
       shape: diamondData.shape,
       weight: diamondData.carat,
       color: diamondData.color,
       clarity: diamondData.clarity,
       cut: diamondData.cut,
       price_per_carat: diamondData.price,
-      lab: diamondData.lab,
-      certificate_number: diamondData.certificate_number,
+      lab: diamondData.lab?.trim(),
+      certificate_number: diamondData.certificate_number?.trim(),
     };
 
     const response = await fetch(`${FASTAPI_BASE_URL}/diamonds/${id}`, {

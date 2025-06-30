@@ -1,4 +1,3 @@
-
 import { authService } from "./auth";
 
 const FASTAPI_BASE_URL = "https://mazalbot.me/api/v1";
@@ -17,6 +16,16 @@ export class ApiTester {
   static async testAllEndpoints(): Promise<ApiTestResult[]> {
     console.log("🧪 Starting comprehensive API testing...");
     const results: ApiTestResult[] = [];
+
+    // Test 0: Backend connectivity check
+    const connectivityResult = await this.testBackendConnectivity();
+    results.push(connectivityResult);
+
+    if (!connectivityResult.success) {
+      console.warn("Backend is not reachable. Skipping remaining tests.");
+      this.printTestSummary(results);
+      return results;
+    }
 
     // Test 1: Alive endpoint (no auth required)
     results.push(await this.testAliveEndpoint());
@@ -52,6 +61,53 @@ export class ApiTester {
     // Print summary
     this.printTestSummary(results);
     return results;
+  }
+
+  private static async testBackendConnectivity(): Promise<ApiTestResult> {
+    const startTime = Date.now();
+    try {
+      console.log("Testing backend connectivity...");
+      
+      // Use a simple fetch with timeout to test basic connectivity
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      
+      const response = await fetch(`${FASTAPI_BASE_URL}/docs`, {
+        method: "HEAD",
+        signal: controller.signal,
+        mode: 'no-cors' // This allows us to test if server is reachable
+      });
+      
+      clearTimeout(timeoutId);
+      const responseTime = Date.now() - startTime;
+
+      return {
+        endpoint: "Backend Connectivity",
+        method: "HEAD",
+        success: true,
+        data: { message: "Backend is reachable" },
+        responseTime,
+      };
+    } catch (error) {
+      const responseTime = Date.now() - startTime;
+      let errorMessage = "Backend is not reachable";
+      
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          errorMessage = "Connection timeout - backend is not responding";
+        } else {
+          errorMessage = `Connection failed: ${error.message}`;
+        }
+      }
+
+      return {
+        endpoint: "Backend Connectivity",
+        method: "HEAD",
+        success: false,
+        error: errorMessage,
+        responseTime,
+      };
+    }
   }
 
   private static async testAliveEndpoint(): Promise<ApiTestResult> {
@@ -348,5 +404,20 @@ export class ApiTester {
     
     console.log(`\nSummary: ${passed} passed, ${failed} failed`);
     console.log("=".repeat(50));
+
+    // Provide helpful guidance based on results
+    if (failed > 0) {
+      console.log("\n💡 Troubleshooting Tips:");
+      if (results[0]?.endpoint === "Backend Connectivity" && !results[0]?.success) {
+        console.log("- Backend server appears to be offline or unreachable");
+        console.log("- Check if FastAPI server is running at https://mazalbot.me");
+        console.log("- Verify server SSL certificate and CORS configuration");
+      }
+      if (results.some(r => r.endpoint.includes("Auth") && !r.success)) {
+        console.log("- Authentication issues detected");
+        console.log("- Verify Telegram WebApp integration is working");
+        console.log("- Check if auth endpoint is properly configured");
+      }
+    }
   }
 }

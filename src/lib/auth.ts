@@ -1,3 +1,4 @@
+
 interface TelegramWebApp {
   initData: string;
   initDataUnsafe: {
@@ -34,9 +35,6 @@ interface TelegramVerifyResponse {
 
 const FASTAPI_BASE_URL = "https://mazalbot.me/api/v1";
 const AUTH_STORAGE_KEY = "mazalbot_auth_tokens";
-
-// Set your actual Bearer token here
-const BEARER_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VySWQiLCJleHAiOjE2ODk2MDAwMDAsImlhdCI6MTY4OTU5NjQwMH0.kWzUkeMTF4LZbU9P5yRmsXrXhWfPlUPukGqI8Nq1rLo";
 
 export class AuthService {
   private static instance: AuthService;
@@ -110,18 +108,59 @@ export class AuthService {
   }
 
   async verifyTelegramAuth(): Promise<AuthTokens> {
-    console.log("Using direct Bearer token for authentication...");
+    console.log("Starting Telegram authentication...");
     
-    // Use the direct Bearer token provided
-    const fallbackTokens: AuthTokens = {
-      access_token: BEARER_TOKEN,
-      user_id: "authenticated_user",
-      expires_at: Math.floor(Date.now() / 1000) + (24 * 60 * 60) // 24 hours
-    };
-    
-    this.storeTokens(fallbackTokens);
-    console.log("Authentication successful with Bearer token");
-    return fallbackTokens;
+    // Check if running in Telegram environment
+    if (!this.isRunningInTelegram()) {
+      console.log("Not running in Telegram environment, using development mode");
+      // For development/testing outside Telegram
+      const fallbackTokens: AuthTokens = {
+        access_token: "dev_token_" + Date.now(),
+        user_id: "dev_user",
+        expires_at: Math.floor(Date.now() / 1000) + (24 * 60 * 60) // 24 hours
+      };
+      this.storeTokens(fallbackTokens);
+      return fallbackTokens;
+    }
+
+    const initData = this.getTelegramInitData();
+    if (!initData) {
+      throw new Error("No Telegram init data available");
+    }
+
+    try {
+      // Call the auth endpoint with Telegram init data
+      const response = await fetch(`${FASTAPI_BASE_URL}/auth`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          init_data: initData
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Authentication failed: ${response.status} - ${errorText}`);
+      }
+
+      const authResponse: TelegramVerifyResponse = await response.json();
+      
+      const tokens: AuthTokens = {
+        access_token: authResponse.access_token,
+        user_id: authResponse.user_id,
+        expires_at: Math.floor(Date.now() / 1000) + authResponse.expires_in
+      };
+
+      this.storeTokens(tokens);
+      console.log("Authentication successful for user:", tokens.user_id);
+      return tokens;
+
+    } catch (error) {
+      console.error("Telegram authentication failed:", error);
+      throw new Error(`Authentication failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   async authenticate(): Promise<AuthTokens> {
@@ -136,11 +175,19 @@ export class AuthService {
   }
 
   async getAuthHeaders(): Promise<HeadersInit> {
-    const tokens = await this.authenticate();
-    return {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${tokens.access_token}`,
-    };
+    try {
+      const tokens = await this.authenticate();
+      return {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${tokens.access_token}`,
+      };
+    } catch (error) {
+      console.error("Failed to get auth headers:", error);
+      // Return headers without auth for graceful degradation
+      return {
+        "Content-Type": "application/json",
+      };
+    }
   }
 
   getCurrentTokens(): AuthTokens | null {
